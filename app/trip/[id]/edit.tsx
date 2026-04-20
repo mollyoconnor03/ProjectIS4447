@@ -1,15 +1,16 @@
+import FormField from '@/components/ui/form-field';
+import PrimaryButton from '@/components/ui/primary-button';
+import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
+import { db } from '@/db/client';
+import { tripsTable } from '@/db/schema';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useRouter } from 'expo-router';
-import { useContext, useState } from 'react';
+import { eq } from 'drizzle-orm';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useContext, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import FormField from '../components/ui/form-field';
-import PrimaryButton from '../components/ui/primary-button';
-import ScreenHeader from '../components/ui/screen-header';
-import { db } from '../db/client';
-import { tripsTable } from '../db/schema';
-import { AuthContext, TripContext } from './_layout';
+import { AuthContext, Trip, TripContext } from '../../_layout';
 
 function DateField({ label, date, onChange }: { label: string; date: Date; onChange: (d: Date) => void }) {
   const [show, setShow] = useState(false);
@@ -60,7 +61,8 @@ const dateStyles = StyleSheet.create({
   },
 });
 
-export default function AddTrip() {
+export default function EditTrip() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const context = useContext(TripContext);
   const authContext = useContext(AuthContext);
@@ -70,25 +72,40 @@ export default function AddTrip() {
   const [endDate, setEndDate] = useState(new Date());
   const [notes, setNotes] = useState('');
 
-  if (!context) return null;
+  const trip = context?.trips.find((t: Trip) => t.id === Number(id));
+
+  useEffect(() => {
+    if (!trip) return;
+    setName(trip.name);
+    setDestination(trip.destination);
+    setStartDate(new Date(trip.startDate));
+    setEndDate(new Date(trip.endDate));
+    setNotes(trip.notes ?? '');
+  }, [trip]);
+
+  if (!context || !trip) return null;
+
   const { refreshTrips } = context;
 
-  const saveTrip = async () => {
-    await db.insert(tripsTable).values({
-      name,
-      destination,
-      startDate: startDate.toISOString().slice(0, 10),
-      endDate: endDate.toISOString().slice(0, 10),
-      notes: notes.trim() || null,
-      userId: authContext?.user?.id ?? null,
-    });
+  const saveChanges = async () => {
+    await db
+      .update(tripsTable)
+      .set({
+        name,
+        destination,
+        startDate: startDate.toISOString().slice(0, 10),
+        endDate: endDate.toISOString().slice(0, 10),
+        notes: notes.trim() || null,
+      })
+      .where(eq(tripsTable.id, Number(id)));
+
     if (authContext?.user) await refreshTrips(authContext.user.id);
     router.back();
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="Add Trip" subtitle="Plan a new holiday." />
+      <ScreenHeader title="Edit Trip" subtitle={`Update ${trip.name}`} />
       <View style={styles.form}>
         <FormField label="Trip Name" value={name} onChangeText={setName} />
         <FormField label="Destination" value={destination} onChangeText={setDestination} />
@@ -103,8 +120,8 @@ export default function AddTrip() {
         />
       </View>
 
-      <PrimaryButton label="Save Trip" onPress={saveTrip} />
-      <View style={styles.backButton}>
+      <PrimaryButton label="Save Changes" onPress={saveChanges} />
+      <View style={styles.buttonSpacing}>
         <PrimaryButton label="Cancel" variant="secondary" onPress={() => router.back()} />
       </View>
     </SafeAreaView>
@@ -122,7 +139,7 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: 8,
   },
-  backButton: {
+  buttonSpacing: {
     marginTop: 10,
   },
 });

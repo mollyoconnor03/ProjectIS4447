@@ -1,3 +1,4 @@
+import { Palette } from '@/constants/theme';
 import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
@@ -16,16 +17,22 @@ export default function ScreenHeader({ title, subtitle }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    borderBottomColor: Palette.border,
+    borderBottomWidth: 1.5,
+    marginBottom: 20,
+    paddingBottom: 16,
   },
   title: {
-    color: '#111827',
+    color: Palette.ink,
+    fontFamily: 'PlayfairDisplay_700Bold',
     fontSize: 28,
-    fontWeight: '700',
+    letterSpacing: 0.3,
+    lineHeight: 36,
   },
   subtitle: {
-    color: '#6B7280',
-    fontSize: 14,
+    color: Palette.inkSecondary,
+    fontSize: 13,
+    letterSpacing: 0.2,
     marginTop: 4,
   },
 });

@@ -1,3 +1,4 @@
+import { Palette } from '@/constants/theme';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 type Props = {
@@ -13,24 +14,26 @@ export default function PrimaryButton({
   compact = false,
   variant = 'primary',
 }: Props) {
+  const buttonStyle =
+    variant === 'secondary' ? styles.secondary
+    : variant === 'danger' ? styles.danger
+    : styles.primary;
+
+  const labelStyle =
+    variant === 'secondary' ? styles.secondaryLabel : styles.primaryLabel;
+
   return (
     <Pressable
       onPress={onPress}
+      android_ripple={{ color: 'transparent' }}
       style={({ pressed }) => [
-        styles.button,
-        variant === 'secondary' ? styles.secondary : null,
-        variant === 'danger' ? styles.danger : null,
+        styles.base,
+        buttonStyle,
         compact ? styles.compact : null,
         pressed ? styles.pressed : null,
       ]}
     >
-      <Text
-        style={[
-          styles.label,
-          variant === 'secondary' ? styles.secondaryLabel : null,
-          compact ? styles.compactLabel : null,
-        ]}
-      >
+      <Text style={[styles.baseLabel, labelStyle, compact ? styles.compactLabel : null]}>
         {label}
       </Text>
     </Pressable>
@@ -38,39 +41,46 @@ export default function PrimaryButton({
 }
 
 const styles = StyleSheet.create({
-  button: {
+  base: {
     alignItems: 'center',
-    backgroundColor: '#0F766E',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    borderRadius: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+  },
+  primary: {
+    backgroundColor: Palette.navy,
   },
   secondary: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#CBD5E1',
-    borderWidth: 1,
+    backgroundColor: 'transparent',
+    borderColor: Palette.navy,
+    borderWidth: 1.5,
   },
   danger: {
-    backgroundColor: '#B91C1C',
+    backgroundColor: Palette.danger,
   },
   compact: {
     alignSelf: 'flex-start',
     marginTop: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.75,
   },
-  label: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+  baseLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  primaryLabel: {
+    color: Palette.background,
   },
   secondaryLabel: {
-    color: '#0F172A',
+    color: Palette.navy,
   },
   compactLabel: {
-    fontSize: 13,
+    fontSize: 11,
+    letterSpacing: 1.2,
   },
 });

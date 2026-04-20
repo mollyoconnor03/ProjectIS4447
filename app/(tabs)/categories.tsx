@@ -1,47 +1,49 @@
+import { CategoryContext } from '@/app/_layout';
+import CategoryCard from '@/components/CategoryCard';
+import PrimaryButton from '@/components/ui/primary-button';
+import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
-import Feather from '@expo/vector-icons/Feather';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useContext } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import TripCard from '../../components/TripCard';
-import PrimaryButton from '../../components/ui/primary-button';
-import ScreenHeader from '../../components/ui/screen-header';
-import { Trip, TripContext } from '../_layout';
 
-export default function IndexScreen() {
+export default function CategoriesScreen() {
   const router = useRouter();
-  const context = useContext(TripContext);
+  const context = useContext(CategoryContext);
 
   if (!context) return null;
 
-  const { trips } = context;
+  const { categories } = context;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader
-        title="My Trips"
-        subtitle={`${trips.length} expedition${trips.length !== 1 ? 's' : ''} logged`}
+        title="Categories"
+        subtitle={`${categories.length} ${categories.length !== 1 ? 'categories' : 'category'}`}
       />
 
       <PrimaryButton
-        label="Add Trip"
-        onPress={() => router.push({ pathname: '../add' })}
+        label="Add Category"
+        onPress={() => router.push('/category/add')}
       />
 
-      {trips.length === 0 ? (
+      {categories.length === 0 ? (
         <View style={styles.emptyState}>
-          <Feather name="compass" size={48} color={Palette.border} />
-          <Text style={styles.emptyHeading}>No journeys yet.</Text>
-          <Text style={styles.emptyBody}>Where are you headed?</Text>
+          <Ionicons name="bookmark-outline" size={48} color={Palette.border} />
+          <Text style={styles.emptyHeading}>No categories yet.</Text>
+          <Text style={styles.emptyBody}>
+            Add a category to organise your activities.
+          </Text>
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         >
-          {trips.map((trip: Trip) => (
-            <TripCard key={trip.id} trip={trip} />
+          {categories.map(cat => (
+            <CategoryCard key={cat.id} category={cat} />
           ))}
         </ScrollView>
       )}

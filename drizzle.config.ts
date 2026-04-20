@@ -4,6 +4,6 @@ schema: './db/schema.ts',
 out: './drizzle',
 dialect: 'sqlite',
 dbCredentials: {
-url: './students.db',
+url: './trips.db',
 },
 } satisfies Config;

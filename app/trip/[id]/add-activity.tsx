@@ -1,0 +1,220 @@
+import FormField from '@/components/ui/form-field';
+import PrimaryButton from '@/components/ui/primary-button';
+import ScreenHeader from '@/components/ui/screen-header';
+import { Palette } from '@/constants/theme';
+import { db } from '@/db/client';
+import { activitiesTable } from '@/db/schema';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useContext, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AuthContext, CategoryContext, Trip, TripContext } from '../../_layout';
+
+function DateField({ label, date, onChange }: { label: string; date: Date; onChange: (d: Date) => void }) {
+  const [show, setShow] = useState(false);
+  return (
+    <View style={dateStyles.wrapper}>
+      <Text style={dateStyles.label}>{label}</Text>
+      <Pressable onPress={() => setShow(true)} style={dateStyles.button}>
+        <Text style={dateStyles.value}>{date.toISOString().slice(0, 10)}</Text>
+      </Pressable>
+      {show && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display="default"
+          onChange={(_, selected) => {
+            if (Platform.OS === 'android') setShow(false);
+            if (selected) onChange(selected);
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+const dateStyles = StyleSheet.create({
+  wrapper: { marginBottom: 16 },
+  label: {
+    color: Palette.navy,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  button: {
+    backgroundColor: Palette.cardBackground,
+    borderColor: Palette.border,
+    borderRadius: 0,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  value: { color: Palette.ink, fontSize: 15 },
+});
+
+export default function AddActivity() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const authContext = useContext(AuthContext);
+  const catContext = useContext(CategoryContext);
+  const tripContext = useContext(TripContext);
+
+  const trip = tripContext?.trips.find((t: Trip) => t.id === Number(id));
+
+  const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryError, setCategoryError] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [location, setLocation] = useState('');
+  const [cost, setCost] = useState('');
+  const [participants, setParticipants] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const categories = catContext?.categories ?? [];
+
+  const saveActivity = async () => {
+    let valid = true;
+    if (!name.trim()) {
+      setNameError('Activity name is required.');
+      valid = false;
+    } else {
+      setNameError('');
+    }
+    if (categoryId === null) {
+      setCategoryError('Please select a category.');
+      valid = false;
+    } else {
+      setCategoryError('');
+    }
+    if (!valid) return;
+
+    await db.insert(activitiesTable).values({
+      tripId: Number(id),
+      categoryId,
+      name: name.trim(),
+      date: date.toISOString().slice(0, 10),
+      startTime: startTime.trim() || null,
+      location: location.trim() || null,
+      cost: cost.trim() || null,
+      participants: participants.trim() || null,
+      notes: notes.trim() || null,
+    });
+
+    if (authContext?.user) await tripContext?.refreshTrips(authContext.user.id);
+    router.back();
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader title="Add Activity" subtitle={trip?.name ?? 'New Activity'} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <FormField
+          label="Activity Name"
+          value={name}
+          onChangeText={text => { setName(text); if (nameError) setNameError(''); }}
+          error={nameError}
+        />
+
+        <DateField label="Date" date={date} onChange={setDate} />
+
+        <Text style={styles.sectionLabel}>Category</Text>
+        {categories.length === 0 ? (
+          <Text style={styles.noCategoriesText}>No categories yet. Add one in the Categories tab.</Text>
+        ) : (
+          <View style={styles.pillRow}>
+            {categories.map(cat => {
+              const selected = categoryId === cat.id;
+              return (
+                <Pressable key={cat.id} onPress={() => { setCategoryId(cat.id); if (categoryError) setCategoryError(''); }}>
+                  <View style={[styles.categoryPill, selected ? { borderColor: cat.color, borderWidth: 2, backgroundColor: Palette.tagBackground } : styles.categoryPillInactive]}>
+                    <View style={[styles.pillDot, { backgroundColor: cat.color }]} />
+                    <Text style={[styles.pillLabel, selected && { color: Palette.ink, fontWeight: '600' }]}>{cat.name}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+        {categoryError ? <Text style={styles.fieldError}>{categoryError}</Text> : null}
+
+        <FormField label="Start Time (optional)" value={startTime} onChangeText={setStartTime} placeholder="e.g. 10:00 AM" />
+        <FormField label="Location (optional)" value={location} onChangeText={setLocation} placeholder="e.g. Colosseum, Rome" />
+        <FormField label="Cost (optional)" value={cost} onChangeText={setCost} placeholder="e.g. €25" />
+        <FormField label="Participants (optional)" value={participants} onChangeText={setParticipants} placeholder="e.g. Sarah, Tom" />
+        <FormField label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Any notes..." multiline />
+
+        <PrimaryButton label="Save Activity" onPress={saveActivity} />
+        <View style={styles.cancelButton}>
+          <PrimaryButton label="Cancel" variant="secondary" onPress={() => router.back()} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: Palette.background,
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  sectionLabel: {
+    color: Palette.navy,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  noCategoriesText: {
+    color: Palette.inkSecondary,
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  categoryPill: {
+    alignItems: 'center',
+    borderRadius: 0,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 8,
+    marginRight: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  categoryPillInactive: {
+    borderColor: Palette.border,
+  },
+  pillDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  pillLabel: {
+    color: Palette.inkSecondary,
+    fontSize: 13,
+  },
+  fieldError: {
+    color: Palette.danger,
+    fontSize: 12,
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  cancelButton: {
+    marginTop: 10,
+  },
+});
