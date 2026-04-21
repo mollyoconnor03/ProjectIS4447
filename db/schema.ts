@@ -16,6 +16,8 @@ export const tripsTable = sqliteTable('trips', {
   startDate: text('start_date').notNull(),
   endDate: text('end_date').notNull(),
   notes: text('notes'),
+  accommodationName: text('accommodation_name'),
+  accommodationCost: text('accommodation_cost'),
 });
 
 export const categoriesTable = sqliteTable('categories', {
@@ -41,9 +43,10 @@ export const activitiesTable = sqliteTable('activities', {
 
 export const targetsTable = sqliteTable('targets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  tripId: integer('trip_id').notNull(),
+  userId: integer('user_id'),
+  tripId: integer('trip_id'),
   categoryId: integer('category_id'),
   label: text('label').notNull(),
+  period: text('period').notNull(),
   targetValue: integer('target_value').notNull(),
-  unit: text('unit').notNull(),
 });

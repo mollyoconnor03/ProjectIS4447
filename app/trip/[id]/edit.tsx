@@ -6,7 +6,7 @@ import { db } from '@/db/client';
 import { tripsTable } from '@/db/schema';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { eq } from 'drizzle-orm';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,14 +36,12 @@ function DateField({ label, date, onChange }: { label: string; date: Date; onCha
 }
 
 const dateStyles = StyleSheet.create({
-  wrapper: {
-    marginBottom: 16,
-  },
+  wrapper: { marginBottom: 16 },
   label: {
-    color: Palette.navy,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
+    fontWeight: '600',
+    letterSpacing: 1.2,
     marginBottom: 6,
     textTransform: 'uppercase',
   },
@@ -51,14 +49,11 @@ const dateStyles = StyleSheet.create({
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
     borderRadius: 0,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  value: {
-    color: Palette.ink,
-    fontSize: 15,
-  },
+  value: { color: Palette.ink, fontSize: 15 },
 });
 
 export default function EditTrip() {
@@ -98,30 +93,23 @@ export default function EditTrip() {
         notes: notes.trim() || null,
       })
       .where(eq(tripsTable.id, Number(id)));
-
     if (authContext?.user) await refreshTrips(authContext.user.id);
     router.back();
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen options={{ title: '' }} />
       <ScreenHeader title="Edit Trip" subtitle={`Update ${trip.name}`} />
       <View style={styles.form}>
         <FormField label="Trip Name" value={name} onChangeText={setName} />
         <FormField label="Destination" value={destination} onChangeText={setDestination} />
         <DateField label="Start Date" date={startDate} onChange={setStartDate} />
         <DateField label="End Date" date={endDate} onChange={setEndDate} />
-        <FormField
-          label="Notes (optional)"
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Any notes about this trip..."
-          multiline
-        />
+        <FormField label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Any notes about this trip..." multiline />
       </View>
-
       <PrimaryButton label="Save Changes" onPress={saveChanges} />
-      <View style={styles.buttonSpacing}>
+      <View style={styles.gap}>
         <PrimaryButton label="Cancel" variant="secondary" onPress={() => router.back()} />
       </View>
     </SafeAreaView>
@@ -139,7 +127,7 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: 8,
   },
-  buttonSpacing: {
+  gap: {
     marginTop: 10,
   },
 });

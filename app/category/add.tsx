@@ -5,20 +5,20 @@ import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
 import { categoriesTable } from '@/db/schema';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useContext, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext, CategoryContext } from '../_layout';
 
 const COLOR_SWATCHES = [
+  '#C4622D',
   '#2D6A8F',
-  '#1B2A4A',
-  '#8B1A1A',
   '#2D7A4F',
   '#7A5C2D',
   '#6B2D7A',
   '#2D6B7A',
+  '#8B1A1A',
   '#7A2D5C',
   '#4A7A2D',
   '#7A6B2D',
@@ -64,6 +64,7 @@ export default function AddCategory() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen options={{ title: '' }} />
       <ScreenHeader title="Add Category" subtitle="Tag your activities." />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <FormField
@@ -77,13 +78,7 @@ export default function AddCategory() {
         <View style={styles.swatchRow}>
           {COLOR_SWATCHES.map(swatch => (
             <Pressable key={swatch} onPress={() => setColor(swatch)}>
-              <View
-                style={[
-                  styles.swatch,
-                  { backgroundColor: swatch },
-                  color === swatch ? styles.swatchSelected : styles.swatchUnselected,
-                ]}
-              />
+              <View style={[styles.swatch, { backgroundColor: swatch }, color === swatch ? styles.swatchSelected : styles.swatchUnselected]} />
             </Pressable>
           ))}
         </View>
@@ -93,18 +88,14 @@ export default function AddCategory() {
           {ICON_OPTIONS.map(opt => (
             <Pressable key={opt} onPress={() => setIcon(opt)}>
               <View style={[styles.iconButton, icon === opt ? styles.iconSelected : styles.iconUnselected]}>
-                <Ionicons
-                  name={opt as any}
-                  size={22}
-                  color={icon === opt ? Palette.navy : Palette.slate}
-                />
+                <Ionicons name={opt as any} size={22} color={icon === opt ? Palette.ink : Palette.inkHint} />
               </View>
             </Pressable>
           ))}
         </View>
 
         <PrimaryButton label="Save Category" onPress={saveCategory} />
-        <View style={styles.cancelButton}>
+        <View style={styles.gap}>
           <PrimaryButton label="Cancel" variant="secondary" onPress={() => router.back()} />
         </View>
       </ScrollView>
@@ -123,10 +114,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   sectionLabel: {
-    color: Palette.navy,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
+    fontWeight: '600',
+    letterSpacing: 1.2,
     marginBottom: 10,
     textTransform: 'uppercase',
   },
@@ -137,16 +128,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   swatch: {
-    height: 36,
-    width: 36,
+    height: 34,
+    width: 34,
   },
   swatchSelected: {
     borderColor: Palette.ink,
-    borderWidth: 3,
+    borderWidth: 2,
   },
   swatchUnselected: {
-    borderColor: Palette.border,
-    borderWidth: 1.5,
+    borderWidth: 0,
   },
   iconRow: {
     flexDirection: 'row',
@@ -156,20 +146,19 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     alignItems: 'center',
-    height: 48,
+    height: 46,
     justifyContent: 'center',
-    width: 48,
+    width: 46,
   },
   iconSelected: {
-    backgroundColor: Palette.tagBackground,
-    borderColor: Palette.navy,
-    borderWidth: 2,
+    borderColor: Palette.ink,
+    borderWidth: 1,
   },
   iconUnselected: {
     borderColor: Palette.border,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
   },
-  cancelButton: {
+  gap: {
     marginTop: 10,
   },
 });

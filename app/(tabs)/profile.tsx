@@ -59,9 +59,8 @@ export default function Profile() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader title={user.name} subtitle={user.email} />
-
       <PrimaryButton label="Sign Out" variant="secondary" onPress={signOut} />
-      <View style={styles.buttonSpacing}>
+      <View style={styles.gap}>
         <PrimaryButton label="Delete Account" variant="danger" onPress={confirmDelete} />
       </View>
     </SafeAreaView>
@@ -76,7 +75,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
   },
-  buttonSpacing: {
+  gap: {
     marginTop: 10,
   },
 });

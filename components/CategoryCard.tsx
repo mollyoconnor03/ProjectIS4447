@@ -36,21 +36,16 @@ export default function CategoryCard({ category }: Props) {
 
   return (
     <View style={styles.card}>
-      <View style={[styles.accentBar, { backgroundColor: category.color }]} />
       <View style={styles.row}>
-        <Ionicons name={category.icon as any} size={18} color={Palette.ink} style={styles.icon} />
+        <View style={[styles.dot, { backgroundColor: category.color }]} />
+        <Ionicons name={category.icon as any} size={15} color={Palette.inkSecondary} style={styles.icon} />
         <Text style={styles.name}>{category.name}</Text>
       </View>
       <View style={styles.buttonRow}>
         <View style={styles.buttonWrap}>
-          <PrimaryButton
-            compact
-            label="Edit"
-            variant="secondary"
-            onPress={() =>
-              router.push({ pathname: '/category/[id]/edit', params: { id: category.id.toString() } })
-            }
-          />
+          <PrimaryButton compact label="Edit" variant="secondary" onPress={() =>
+            router.push({ pathname: '/category/[id]/edit', params: { id: category.id.toString() } })
+          } />
         </View>
         <View style={styles.buttonWrap}>
           <PrimaryButton compact label="Delete" variant="danger" onPress={confirmDelete} />
@@ -64,35 +59,30 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    marginBottom: 14,
-    overflow: 'hidden',
-    paddingBottom: 16,
-    paddingLeft: 20,
-    paddingRight: 16,
-    paddingTop: 16,
-  },
-  accentBar: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    top: 0,
-    width: 3,
+    borderWidth: 0.5,
+    marginBottom: 10,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
   row: {
     alignItems: 'center',
     flexDirection: 'row',
     marginBottom: 2,
   },
+  dot: {
+    borderRadius: 4,
+    height: 8,
+    marginRight: 8,
+    width: 8,
+  },
   icon: {
-    marginRight: 10,
+    marginRight: 7,
   },
   name: {
     color: Palette.ink,
-    fontFamily: 'PlayfairDisplay_700Bold',
+    fontFamily: 'DMSerifDisplay_400Regular',
     fontSize: 16,
-    letterSpacing: 0.1,
   },
   buttonRow: {
     flexDirection: 'row',

@@ -35,13 +35,20 @@ CREATE TABLE IF NOT EXISTS activities (
 sqlite.execSync(`
 CREATE TABLE IF NOT EXISTS targets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  trip_id INTEGER NOT NULL,
+  user_id INTEGER,
+  trip_id INTEGER,
   category_id INTEGER,
   label TEXT NOT NULL,
-  target_value INTEGER NOT NULL,
-  unit TEXT NOT NULL
+  period TEXT NOT NULL DEFAULT 'weekly',
+  target_value INTEGER NOT NULL
 );
 `);
+try {
+  sqlite.execSync(`ALTER TABLE targets ADD COLUMN user_id INTEGER;`);
+} catch (_) {}
+try {
+  sqlite.execSync(`ALTER TABLE targets ADD COLUMN period TEXT NOT NULL DEFAULT 'weekly';`);
+} catch (_) {}
 sqlite.execSync(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,6 +60,12 @@ CREATE TABLE IF NOT EXISTS users (
 `);
 try {
   sqlite.execSync(`ALTER TABLE trips ADD COLUMN user_id INTEGER;`);
+} catch (_) {}
+try {
+  sqlite.execSync(`ALTER TABLE trips ADD COLUMN accommodation_name TEXT;`);
+} catch (_) {}
+try {
+  sqlite.execSync(`ALTER TABLE trips ADD COLUMN accommodation_cost TEXT;`);
 } catch (_) {}
 try {
   sqlite.execSync(`ALTER TABLE trips ADD COLUMN notes TEXT;`);

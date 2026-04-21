@@ -3,7 +3,7 @@ import CategoryCard from '@/components/CategoryCard';
 import PrimaryButton from '@/components/ui/primary-button';
 import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
 import { useContext } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -19,29 +19,17 @@ export default function CategoriesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader
-        title="Categories"
-        subtitle={`${categories.length} ${categories.length !== 1 ? 'categories' : 'category'}`}
-      />
+      <ScreenHeader title="Categories" centered />
 
-      <PrimaryButton
-        label="Add Category"
-        onPress={() => router.push('/category/add')}
-      />
+      <PrimaryButton label="Add Category" onPress={() => router.push('/category/add')} />
 
       {categories.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="bookmark-outline" size={48} color={Palette.border} />
-          <Text style={styles.emptyHeading}>No categories yet.</Text>
-          <Text style={styles.emptyBody}>
-            Add a category to organise your activities.
-          </Text>
+          <Feather name="tag" size={36} color={Palette.inkHint} />
+          <Text style={styles.emptyText}>No categories yet. Give your travels some shape.</Text>
         </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
           {categories.map(cat => (
             <CategoryCard key={cat.id} category={cat} />
           ))}
@@ -69,19 +57,13 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingHorizontal: 32,
   },
-  emptyHeading: {
-    color: Palette.ink,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    fontSize: 22,
-    letterSpacing: 0.2,
-    marginBottom: 10,
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  emptyBody: {
+  emptyText: {
     color: Palette.inkSecondary,
-    fontSize: 14,
-    lineHeight: 21,
+    fontFamily: 'DMSerifDisplay_400Regular',
+    fontStyle: 'italic',
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 16,
     textAlign: 'center',
   },
 });

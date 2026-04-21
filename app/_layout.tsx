@@ -1,8 +1,8 @@
 import {
-  PlayfairDisplay_400Regular_Italic,
-  PlayfairDisplay_700Bold,
+  DMSerifDisplay_400Regular,
+  DMSerifDisplay_400Regular_Italic,
   useFonts,
-} from '@expo-google-fonts/playfair-display';
+} from '@expo-google-fonts/dm-serif-display';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { activitiesTable, categoriesTable, tripsTable, usersTable } from '@/db/schema';
 import { Palette } from '@/constants/theme';
@@ -28,6 +28,8 @@ export type Trip = {
   startDate: string;
   endDate: string;
   notes: string | null;
+  accommodationName: string | null;
+  accommodationCost: string | null;
   activityCount?: number;
 };
 
@@ -54,6 +56,16 @@ type CategoryContextType = {
 };
 
 export const CategoryContext = createContext<CategoryContextType | null>(null);
+
+export type Target = {
+  id: number;
+  userId: number | null;
+  tripId: number | null;
+  categoryId: number | null;
+  label: string;
+  period: 'weekly' | 'monthly';
+  targetValue: number;
+};
 
 export type Activity = {
   id: number;
@@ -89,8 +101,8 @@ export default function RootLayout() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loaded, fontError] = useFonts({
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_400Regular_Italic,
+    DMSerifDisplay_400Regular,
+    DMSerifDisplay_400Regular_Italic,
   });
 
   const refreshTrips = useCallback(async (userId: number) => {
@@ -125,16 +137,23 @@ export default function RootLayout() {
       if (stored) {
         const rows = await db.select().from(usersTable).where(eq(usersTable.id, Number(stored)));
         if (rows[0]) {
-          const u = { id: rows[0].id, name: rows[0].name, email: rows[0].email };
-          setUser(u);
-          await refreshTrips(rows[0].id);
-          await refreshCategories(rows[0].id);
+          setUser({ id: rows[0].id, name: rows[0].name, email: rows[0].email });
         }
       }
       setAuthLoaded(true);
     };
     checkSession();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      refreshTrips(user.id);
+      refreshCategories(user.id);
+    } else {
+      setTrips([]);
+      setCategories([]);
+    }
+  }, [user?.id]);
 
   useProtectedRoute(user, authLoaded);
 
@@ -149,7 +168,7 @@ export default function RootLayout() {
               headerStyle: { backgroundColor: Palette.background },
               headerShadowVisible: false,
               headerTitleStyle: {
-                fontFamily: 'PlayfairDisplay_700Bold',
+                fontFamily: 'DMSerifDisplay_400Regular',
                 fontSize: 18,
                 color: Palette.ink,
               },

@@ -31,21 +31,10 @@ export default function Register() {
     setNameError('');
     setEmailError('');
     setPasswordError('');
-    if (!name.trim()) {
-      setNameError('Name is required.');
-      valid = false;
-    }
-    if (!email.trim()) {
-      setEmailError('Email is required.');
-      valid = false;
-    } else if (!EMAIL_RE.test(email.trim())) {
-      setEmailError('Enter a valid email address.');
-      valid = false;
-    }
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters.');
-      valid = false;
-    }
+    if (!name.trim()) { setNameError('Name is required.'); valid = false; }
+    if (!email.trim()) { setEmailError('Email is required.'); valid = false; }
+    else if (!EMAIL_RE.test(email.trim())) { setEmailError('Enter a valid email address.'); valid = false; }
+    if (password.length < 6) { setPasswordError('Password must be at least 6 characters.'); valid = false; }
     return valid;
   };
 
@@ -53,27 +42,10 @@ export default function Register() {
     if (!validate()) return;
     setLoading(true);
     try {
-      const existing = await db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(eq(usersTable.email, email.toLowerCase().trim()));
-      if (existing[0]) {
-        setEmailError('An account with this email already exists.');
-        return;
-      }
-      const hash = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        password,
-      );
-      const result = await db
-        .insert(usersTable)
-        .values({
-          name: name.trim(),
-          email: email.toLowerCase().trim(),
-          passwordHash: hash,
-          createdAt: new Date().toISOString(),
-        })
-        .returning();
+      const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+      if (existing[0]) { setEmailError('An account with this email already exists.'); return; }
+      const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, password);
+      const result = await db.insert(usersTable).values({ name: name.trim(), email: email.toLowerCase().trim(), passwordHash: hash, createdAt: new Date().toISOString() }).returning();
       const newUser = result[0];
       await AsyncStorage.setItem('CURRENT_USER_ID', String(newUser.id));
       authContext?.setUser({ id: newUser.id, name: newUser.name, email: newUser.email });
@@ -90,41 +62,19 @@ export default function Register() {
           <Text style={styles.eyebrowText}>YOUR TRAVEL JOURNAL</Text>
         </View>
 
-        <ScreenHeader
-          title="A New Adventure Begins"
-          subtitle="Create your travel journal."
-        />
+        <ScreenHeader title="A New Adventure Begins" subtitle="Create your travel journal." />
 
         <View style={styles.form}>
-          <FormField
-            label="Your Name"
-            value={name}
-            onChangeText={(t) => { setName(t); setNameError(''); }}
-            placeholder="Jane Doe"
-            error={nameError}
-          />
-          <FormField
-            label="Email"
-            value={email}
-            onChangeText={(t) => { setEmail(t); setEmailError(''); }}
-            placeholder="your@email.com"
-            error={emailError}
-          />
-          <FormField
-            label="Password"
-            value={password}
-            onChangeText={(t) => { setPassword(t); setPasswordError(''); }}
-            secureTextEntry
-            placeholder="At least 6 characters"
-            error={passwordError}
-          />
+          <FormField label="Your Name" value={name} onChangeText={t => { setName(t); setNameError(''); }} placeholder="Jane Doe" error={nameError} />
+          <FormField label="Email" value={email} onChangeText={t => { setEmail(t); setEmailError(''); }} placeholder="your@email.com" error={emailError} />
+          <FormField label="Password" value={password} onChangeText={t => { setPassword(t); setPasswordError(''); }} secureTextEntry placeholder="At least 6 characters" error={passwordError} />
         </View>
 
         <PrimaryButton label={loading ? 'Creating journal…' : 'Create Journal'} onPress={register} />
 
         <Pressable onPress={() => router.replace('/(auth)/login')} style={styles.linkRow}>
-          <Text style={styles.link}>Already have a journal?{' '}</Text>
-          <Text style={[styles.link, styles.linkBold]}>Sign in.</Text>
+          <Text style={styles.link}>Already have a journal? </Text>
+          <Text style={[styles.link, styles.linkAccent]}>Sign in.</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -138,17 +88,17 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
+    paddingBottom: 32,
     paddingHorizontal: 20,
     paddingTop: 40,
-    paddingBottom: 32,
   },
   eyebrow: {
     marginBottom: 20,
   },
   eyebrowText: {
-    color: Palette.border,
+    color: Palette.inkHint,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 2,
   },
   form: {
@@ -163,8 +113,8 @@ const styles = StyleSheet.create({
     color: Palette.inkSecondary,
     fontSize: 13,
   },
-  linkBold: {
-    color: Palette.navy,
-    fontWeight: '700',
+  linkAccent: {
+    color: Palette.terracotta,
+    fontWeight: '600',
   },
 });

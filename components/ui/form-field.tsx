@@ -18,7 +18,7 @@ export default function FormField({ label, value, onChangeText, placeholder, sec
       <Text style={styles.label}>{label}</Text>
       <TextInput
         placeholder={placeholder ?? label}
-        placeholderTextColor={Palette.inkSecondary}
+        placeholderTextColor={Palette.inkHint}
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
@@ -36,10 +36,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: Palette.navy,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
+    fontWeight: '600',
+    letterSpacing: 1.2,
     marginBottom: 6,
     textTransform: 'uppercase',
   },
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
     borderRadius: 0,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     color: Palette.ink,
     fontSize: 15,
     paddingHorizontal: 14,
@@ -64,7 +64,6 @@ const styles = StyleSheet.create({
   error: {
     color: Palette.danger,
     fontSize: 12,
-    letterSpacing: 0.2,
     marginTop: 4,
   },
 });

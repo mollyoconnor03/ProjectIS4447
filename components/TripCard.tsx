@@ -16,18 +16,15 @@ export default function TripCard({ trip }: Props) {
 
   return (
     <View style={styles.card}>
-      <View style={styles.accentBar} />
       <Pressable onPress={openDetails}>
         <Text style={styles.name}>{trip.name}</Text>
       </Pressable>
       <Text style={styles.destination}>{trip.destination}</Text>
-
       <View style={styles.tags}>
         <InfoTag label="From" value={trip.startDate} />
         <InfoTag label="To" value={trip.endDate} />
         <InfoTag label="Activities" value={String(trip.activityCount ?? 0)} />
       </View>
-
       <PrimaryButton compact label="View Trip" onPress={openDetails} />
     </View>
   );
@@ -37,41 +34,28 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    marginBottom: 14,
-    overflow: 'hidden',
-    paddingBottom: 16,
-    paddingLeft: 20,
-    paddingRight: 16,
-    paddingTop: 16,
-  },
-  accentBar: {
-    backgroundColor: Palette.navy,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    top: 0,
-    width: 3,
+    borderWidth: 0.5,
+    marginBottom: 12,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
   name: {
     color: Palette.ink,
-    fontFamily: 'PlayfairDisplay_700Bold',
+    fontFamily: 'DMSerifDisplay_400Regular',
     fontSize: 18,
-    letterSpacing: 0.1,
     lineHeight: 24,
+    marginBottom: 2,
   },
   destination: {
     color: Palette.inkSecondary,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.3,
+    fontSize: 12,
     marginBottom: 10,
-    marginTop: 2,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
+    marginBottom: 4,
+    marginTop: 4,
   },
 });

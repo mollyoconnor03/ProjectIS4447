@@ -17,27 +17,25 @@ export default function InfoTag({ label, value }: Props) {
 
 const styles = StyleSheet.create({
   tag: {
-    backgroundColor: Palette.tagBackground,
-    borderColor: Palette.ocean,
+    borderColor: Palette.border,
     borderRadius: 0,
-    borderWidth: 1,
+    borderWidth: 0.5,
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 6,
     marginRight: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   label: {
-    color: Palette.ocean,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.0,
+    fontWeight: '600',
+    letterSpacing: 0.8,
     marginRight: 5,
     textTransform: 'uppercase',
   },
   value: {
-    color: Palette.navy,
-    fontSize: 12,
-    fontWeight: '600',
+    color: Palette.ink,
+    fontSize: 11,
   },
 });

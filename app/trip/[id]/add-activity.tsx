@@ -5,11 +5,15 @@ import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
 import { activitiesTable } from '@/db/schema';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext, CategoryContext, Trip, TripContext } from '../../_layout';
+
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function DateField({ label, date, onChange }: { label: string; date: Date; onChange: (d: Date) => void }) {
   const [show, setShow] = useState(false);
@@ -17,7 +21,7 @@ function DateField({ label, date, onChange }: { label: string; date: Date; onCha
     <View style={dateStyles.wrapper}>
       <Text style={dateStyles.label}>{label}</Text>
       <Pressable onPress={() => setShow(true)} style={dateStyles.button}>
-        <Text style={dateStyles.value}>{date.toISOString().slice(0, 10)}</Text>
+        <Text style={dateStyles.value}>{toLocalDate(date)}</Text>
       </Pressable>
       {show && (
         <DateTimePicker
@@ -37,10 +41,10 @@ function DateField({ label, date, onChange }: { label: string; date: Date; onCha
 const dateStyles = StyleSheet.create({
   wrapper: { marginBottom: 16 },
   label: {
-    color: Palette.navy,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
+    fontWeight: '600',
+    letterSpacing: 1.2,
     marginBottom: 6,
     textTransform: 'uppercase',
   },
@@ -48,7 +52,7 @@ const dateStyles = StyleSheet.create({
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
     borderRadius: 0,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -64,9 +68,17 @@ export default function AddActivity() {
 
   const trip = tripContext?.trips.find((t: Trip) => t.id === Number(id));
 
+  const defaultActivityDate = (): Date => {
+    if (!trip) return new Date();
+    const today = toLocalDate(new Date());
+    if (today >= trip.startDate && today <= trip.endDate) return new Date();
+    if (today > trip.endDate) return new Date(trip.endDate + 'T12:00:00');
+    return new Date(trip.startDate + 'T12:00:00');
+  };
+
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState(defaultActivityDate);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categoryError, setCategoryError] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -79,25 +91,15 @@ export default function AddActivity() {
 
   const saveActivity = async () => {
     let valid = true;
-    if (!name.trim()) {
-      setNameError('Activity name is required.');
-      valid = false;
-    } else {
-      setNameError('');
-    }
-    if (categoryId === null) {
-      setCategoryError('Please select a category.');
-      valid = false;
-    } else {
-      setCategoryError('');
-    }
+    if (!name.trim()) { setNameError('Activity name is required.'); valid = false; } else { setNameError(''); }
+    if (categoryId === null) { setCategoryError('Please select a category.'); valid = false; } else { setCategoryError(''); }
     if (!valid) return;
 
     await db.insert(activitiesTable).values({
       tripId: Number(id),
       categoryId,
       name: name.trim(),
-      date: date.toISOString().slice(0, 10),
+      date: toLocalDate(date),
       startTime: startTime.trim() || null,
       location: location.trim() || null,
       cost: cost.trim() || null,
@@ -111,6 +113,7 @@ export default function AddActivity() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen options={{ title: '' }} />
       <ScreenHeader title="Add Activity" subtitle={trip?.name ?? 'New Activity'} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <FormField
@@ -124,16 +127,16 @@ export default function AddActivity() {
 
         <Text style={styles.sectionLabel}>Category</Text>
         {categories.length === 0 ? (
-          <Text style={styles.noCategoriesText}>No categories yet. Add one in the Categories tab.</Text>
+          <Text style={styles.hint}>No categories yet. Add one in the Categories tab.</Text>
         ) : (
           <View style={styles.pillRow}>
             {categories.map(cat => {
               const selected = categoryId === cat.id;
               return (
                 <Pressable key={cat.id} onPress={() => { setCategoryId(cat.id); if (categoryError) setCategoryError(''); }}>
-                  <View style={[styles.categoryPill, selected ? { borderColor: cat.color, borderWidth: 2, backgroundColor: Palette.tagBackground } : styles.categoryPillInactive]}>
+                  <View style={[styles.pill, selected ? { borderColor: cat.color, borderWidth: 1 } : styles.pillInactive]}>
                     <View style={[styles.pillDot, { backgroundColor: cat.color }]} />
-                    <Text style={[styles.pillLabel, selected && { color: Palette.ink, fontWeight: '600' }]}>{cat.name}</Text>
+                    <Text style={[styles.pillLabel, selected && styles.pillLabelSelected]}>{cat.name}</Text>
                   </View>
                 </Pressable>
               );
@@ -149,7 +152,7 @@ export default function AddActivity() {
         <FormField label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Any notes..." multiline />
 
         <PrimaryButton label="Save Activity" onPress={saveActivity} />
-        <View style={styles.cancelButton}>
+        <View style={styles.gap}>
           <PrimaryButton label="Cancel" variant="secondary" onPress={() => router.back()} />
         </View>
       </ScrollView>
@@ -168,14 +171,14 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   sectionLabel: {
-    color: Palette.navy,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
+    fontWeight: '600',
+    letterSpacing: 1.2,
     marginBottom: 10,
     textTransform: 'uppercase',
   },
-  noCategoriesText: {
+  hint: {
     color: Palette.inkSecondary,
     fontSize: 13,
     marginBottom: 16,
@@ -185,10 +188,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 8,
   },
-  categoryPill: {
+  pill: {
     alignItems: 'center',
     borderRadius: 0,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     flexDirection: 'row',
     gap: 6,
     marginBottom: 8,
@@ -196,17 +199,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  categoryPillInactive: {
+  pillInactive: {
     borderColor: Palette.border,
   },
   pillDot: {
     borderRadius: 4,
-    height: 8,
-    width: 8,
+    height: 7,
+    width: 7,
   },
   pillLabel: {
     color: Palette.inkSecondary,
     fontSize: 13,
+  },
+  pillLabelSelected: {
+    color: Palette.ink,
+    fontWeight: '600',
   },
   fieldError: {
     color: Palette.danger,
@@ -214,7 +221,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: -4,
   },
-  cancelButton: {
+  gap: {
     marginTop: 10,
   },
 });

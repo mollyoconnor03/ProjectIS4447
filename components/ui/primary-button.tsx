@@ -8,19 +8,10 @@ type Props = {
   variant?: 'primary' | 'secondary' | 'danger';
 };
 
-export default function PrimaryButton({
-  label,
-  onPress,
-  compact = false,
-  variant = 'primary',
-}: Props) {
-  const buttonStyle =
-    variant === 'secondary' ? styles.secondary
-    : variant === 'danger' ? styles.danger
-    : styles.primary;
-
-  const labelStyle =
-    variant === 'secondary' ? styles.secondaryLabel : styles.primaryLabel;
+export default function PrimaryButton({ label, onPress, compact = false, variant = 'primary' }: Props) {
+  const isPrimary = variant === 'primary';
+  const isDanger = variant === 'danger';
+  const isSecondary = variant === 'secondary';
 
   return (
     <Pressable
@@ -28,12 +19,20 @@ export default function PrimaryButton({
       android_ripple={{ color: 'transparent' }}
       style={({ pressed }) => [
         styles.base,
-        buttonStyle,
-        compact ? styles.compact : null,
-        pressed ? styles.pressed : null,
+        isPrimary && styles.primary,
+        isDanger && styles.danger,
+        isSecondary && styles.secondary,
+        compact && styles.compact,
+        pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.baseLabel, labelStyle, compact ? styles.compactLabel : null]}>
+      <Text style={[
+        styles.baseLabel,
+        isPrimary && styles.primaryLabel,
+        isDanger && styles.dangerLabel,
+        isSecondary && styles.secondaryLabel,
+        compact && styles.compactLabel,
+      ]}>
         {label}
       </Text>
     </Pressable>
@@ -48,39 +47,41 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   primary: {
-    backgroundColor: Palette.navy,
+    backgroundColor: Palette.terracotta,
   },
   secondary: {
     backgroundColor: 'transparent',
-    borderColor: Palette.navy,
-    borderWidth: 1.5,
+    borderColor: Palette.ink,
+    borderWidth: 0.5,
   },
   danger: {
     backgroundColor: Palette.danger,
   },
   compact: {
     alignSelf: 'flex-start',
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.7,
   },
   baseLabel: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   primaryLabel: {
-    color: Palette.background,
+    color: Palette.white,
   },
   secondaryLabel: {
-    color: Palette.navy,
+    color: Palette.ink,
+  },
+  dangerLabel: {
+    color: Palette.white,
   },
   compactLabel: {
-    fontSize: 11,
-    letterSpacing: 1.2,
+    fontSize: 10,
+    letterSpacing: 1.1,
   },
 });

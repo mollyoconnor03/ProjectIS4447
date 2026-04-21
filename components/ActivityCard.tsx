@@ -12,8 +12,6 @@ type Props = {
 };
 
 export default function ActivityCard({ activity, categoryName, categoryColor, onEdit, onDelete }: Props) {
-  const accentColor = categoryColor ?? Palette.border;
-
   const confirmDelete = () => {
     Alert.alert(
       'Delete Activity',
@@ -27,17 +25,16 @@ export default function ActivityCard({ activity, categoryName, categoryColor, on
 
   return (
     <View style={styles.card}>
-      <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
-      <Text style={styles.name}>{activity.name}</Text>
       <View style={styles.metaRow}>
         <Text style={styles.date}>{activity.date}</Text>
         {categoryName && categoryColor && (
           <View style={styles.categoryPill}>
-            <View style={[styles.categoryDot, { backgroundColor: categoryColor }]} />
+            <View style={[styles.dot, { backgroundColor: categoryColor }]} />
             <Text style={styles.categoryLabel}>{categoryName}</Text>
           </View>
         )}
       </View>
+      <Text style={styles.name}>{activity.name}</Text>
       {activity.startTime ? <Text style={styles.detail}>Time: {activity.startTime}</Text> : null}
       {activity.location ? <Text style={styles.detail}>Location: {activity.location}</Text> : null}
       {activity.cost ? <Text style={styles.detail}>Cost: {activity.cost}</Text> : null}
@@ -59,52 +56,41 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    marginBottom: 14,
-    overflow: 'hidden',
-    paddingBottom: 16,
-    paddingLeft: 20,
-    paddingRight: 16,
-    paddingTop: 16,
-  },
-  accentBar: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    top: 0,
-    width: 3,
-  },
-  name: {
-    color: Palette.ink,
-    fontFamily: 'PlayfairDisplay_700Bold',
-    fontSize: 16,
-    letterSpacing: 0.1,
-    marginBottom: 4,
+    borderWidth: 0.5,
+    marginBottom: 10,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   metaRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   date: {
     color: Palette.inkSecondary,
     flex: 1,
-    fontSize: 12,
+    fontSize: 11,
   },
   categoryPill: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 5,
   },
-  categoryDot: {
+  dot: {
     borderRadius: 4,
-    height: 8,
-    width: 8,
+    height: 7,
+    width: 7,
   },
   categoryLabel: {
     color: Palette.inkSecondary,
-    fontSize: 12,
+    fontSize: 11,
+  },
+  name: {
+    color: Palette.ink,
+    fontFamily: 'DMSerifDisplay_400Regular',
+    fontSize: 16,
+    marginBottom: 5,
   },
   detail: {
     color: Palette.inkSecondary,

@@ -6,11 +6,15 @@ import { db } from '@/db/client';
 import { activitiesTable } from '@/db/schema';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { eq } from 'drizzle-orm';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Activity, AuthContext, CategoryContext, TripContext } from '../../_layout';
+
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function DateField({ label, date, onChange }: { label: string; date: Date; onChange: (d: Date) => void }) {
   const [show, setShow] = useState(false);
@@ -18,7 +22,7 @@ function DateField({ label, date, onChange }: { label: string; date: Date; onCha
     <View style={dateStyles.wrapper}>
       <Text style={dateStyles.label}>{label}</Text>
       <Pressable onPress={() => setShow(true)} style={dateStyles.button}>
-        <Text style={dateStyles.value}>{date.toISOString().slice(0, 10)}</Text>
+        <Text style={dateStyles.value}>{toLocalDate(date)}</Text>
       </Pressable>
       {show && (
         <DateTimePicker
@@ -38,10 +42,10 @@ function DateField({ label, date, onChange }: { label: string; date: Date; onCha
 const dateStyles = StyleSheet.create({
   wrapper: { marginBottom: 16 },
   label: {
-    color: Palette.navy,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
+    fontWeight: '600',
+    letterSpacing: 1.2,
     marginBottom: 6,
     textTransform: 'uppercase',
   },
@@ -49,7 +53,7 @@ const dateStyles = StyleSheet.create({
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
     borderRadius: 0,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -83,7 +87,7 @@ export default function EditActivity() {
         if (!rows[0]) return;
         const a = rows[0];
         setName(a.name);
-        setDate(new Date(a.date));
+        setDate(new Date(a.date + 'T12:00:00'));
         setCategoryId(a.categoryId);
         setStartTime(a.startTime ?? '');
         setLocation(a.location ?? '');
@@ -100,18 +104,8 @@ export default function EditActivity() {
 
   const saveChanges = async () => {
     let valid = true;
-    if (!name.trim()) {
-      setNameError('Activity name is required.');
-      valid = false;
-    } else {
-      setNameError('');
-    }
-    if (categoryId === null) {
-      setCategoryError('Please select a category.');
-      valid = false;
-    } else {
-      setCategoryError('');
-    }
+    if (!name.trim()) { setNameError('Activity name is required.'); valid = false; } else { setNameError(''); }
+    if (categoryId === null) { setCategoryError('Please select a category.'); valid = false; } else { setCategoryError(''); }
     if (!valid) return;
 
     await db
@@ -119,7 +113,7 @@ export default function EditActivity() {
       .set({
         name: name.trim(),
         categoryId,
-        date: date.toISOString().slice(0, 10),
+        date: toLocalDate(date),
         startTime: startTime.trim() || null,
         location: location.trim() || null,
         cost: cost.trim() || null,
@@ -134,6 +128,7 @@ export default function EditActivity() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen options={{ title: '' }} />
       <ScreenHeader title="Edit Activity" subtitle={name} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <FormField
@@ -147,16 +142,16 @@ export default function EditActivity() {
 
         <Text style={styles.sectionLabel}>Category</Text>
         {categories.length === 0 ? (
-          <Text style={styles.noCategoriesText}>No categories yet. Add one in the Categories tab.</Text>
+          <Text style={styles.hint}>No categories yet. Add one in the Categories tab.</Text>
         ) : (
           <View style={styles.pillRow}>
             {categories.map(cat => {
               const selected = categoryId === cat.id;
               return (
                 <Pressable key={cat.id} onPress={() => { setCategoryId(cat.id); if (categoryError) setCategoryError(''); }}>
-                  <View style={[styles.categoryPill, selected ? { borderColor: cat.color, borderWidth: 2, backgroundColor: Palette.tagBackground } : styles.categoryPillInactive]}>
+                  <View style={[styles.pill, selected ? { borderColor: cat.color, borderWidth: 1 } : styles.pillInactive]}>
                     <View style={[styles.pillDot, { backgroundColor: cat.color }]} />
-                    <Text style={[styles.pillLabel, selected && { color: Palette.ink, fontWeight: '600' }]}>{cat.name}</Text>
+                    <Text style={[styles.pillLabel, selected && styles.pillLabelSelected]}>{cat.name}</Text>
                   </View>
                 </Pressable>
               );
@@ -172,7 +167,7 @@ export default function EditActivity() {
         <FormField label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Any notes..." multiline />
 
         <PrimaryButton label="Save Changes" onPress={saveChanges} />
-        <View style={styles.cancelButton}>
+        <View style={styles.gap}>
           <PrimaryButton label="Cancel" variant="secondary" onPress={() => router.back()} />
         </View>
       </ScrollView>
@@ -191,14 +186,14 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   sectionLabel: {
-    color: Palette.navy,
+    color: Palette.inkSecondary,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.4,
+    fontWeight: '600',
+    letterSpacing: 1.2,
     marginBottom: 10,
     textTransform: 'uppercase',
   },
-  noCategoriesText: {
+  hint: {
     color: Palette.inkSecondary,
     fontSize: 13,
     marginBottom: 16,
@@ -208,10 +203,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 8,
   },
-  categoryPill: {
+  pill: {
     alignItems: 'center',
     borderRadius: 0,
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     flexDirection: 'row',
     gap: 6,
     marginBottom: 8,
@@ -219,17 +214,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  categoryPillInactive: {
+  pillInactive: {
     borderColor: Palette.border,
   },
   pillDot: {
     borderRadius: 4,
-    height: 8,
-    width: 8,
+    height: 7,
+    width: 7,
   },
   pillLabel: {
     color: Palette.inkSecondary,
     fontSize: 13,
+  },
+  pillLabelSelected: {
+    color: Palette.ink,
+    fontWeight: '600',
   },
   fieldError: {
     color: Palette.danger,
@@ -237,7 +236,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: -4,
   },
-  cancelButton: {
+  gap: {
     marginTop: 10,
   },
 });
