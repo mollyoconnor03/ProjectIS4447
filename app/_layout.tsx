@@ -30,6 +30,10 @@ export type Trip = {
   latitude: number | null;
   longitude: number | null;
   country: string | null;
+  reflectMemory: string | null;
+  reflectMeal: string | null;
+  reflectSpot: string | null;
+  reflectNotes: string | null;
 };
 
 type TripContextType = {

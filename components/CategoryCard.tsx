@@ -3,7 +3,6 @@ import PrimaryButton from '@/components/ui/primary-button';
 import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
 import { categoriesTable } from '@/db/schema';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { eq } from 'drizzle-orm';
 import { useRouter } from 'expo-router';
 import { useContext } from 'react';
@@ -38,7 +37,6 @@ export default function CategoryCard({ category }: Props) {
     <View style={styles.card}>
       <View style={styles.row}>
         <View style={[styles.dot, { backgroundColor: category.color }]} />
-        <Ionicons name={category.icon as any} size={15} color={Palette.inkSecondary} style={styles.icon} />
         <Text style={styles.name}>{category.name}</Text>
       </View>
       <View style={styles.buttonRow}>
@@ -79,9 +77,6 @@ const styles = StyleSheet.create({
     height: 8,
     marginRight: 8,
     width: 8,
-  },
-  icon: {
-    marginRight: 7,
   },
   name: {
     color: Palette.ink,

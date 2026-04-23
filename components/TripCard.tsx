@@ -20,8 +20,14 @@ function formatDate(dateStr: string): string {
 
 export default function TripCard({ trip }: Props) {
   const router = useRouter();
+  const today = new Date().toISOString().slice(0, 10);
+  const isPast = trip.endDate < today;
+
   const openDetails = () =>
     router.push({ pathname: '/trip/[id]', params: { id: trip.id.toString() } });
+
+  const openReflect = () =>
+    router.push({ pathname: '/trip/[id]/reflect', params: { id: trip.id.toString() } });
 
   return (
     <View style={styles.card}>
@@ -37,7 +43,16 @@ export default function TripCard({ trip }: Props) {
         <InfoTag label="To" value={formatDate(trip.endDate)} />
         <InfoTag label="Activities" value={String(trip.activityCount ?? 0)} />
       </View>
-      <PrimaryButton compact label="View Trip" onPress={openDetails} />
+      <View style={styles.btnRow}>
+        <View style={styles.btnFlex}>
+          <PrimaryButton compact label="View Trip" onPress={openDetails} />
+        </View>
+        {isPast && (
+          <View style={styles.btnFlex}>
+            <PrimaryButton compact label="Reflect" variant="secondary" onPress={openReflect} />
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -79,5 +94,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 4,
     marginTop: 4,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  btnFlex: {
+    flex: 1,
   },
 });

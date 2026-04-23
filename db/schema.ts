@@ -21,6 +21,10 @@ export const tripsTable = sqliteTable('trips', {
   latitude: real('latitude'),
   longitude: real('longitude'),
   country: text('country'),
+  reflectMemory: text('reflect_memory'),
+  reflectMeal: text('reflect_meal'),
+  reflectSpot: text('reflect_spot'),
+  reflectNotes: text('reflect_notes'),
 });
 
 export const categoriesTable = sqliteTable('categories', {

@@ -4,7 +4,6 @@ import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
 import { categoriesTable } from '@/db/schema';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { eq } from 'drizzle-orm';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
@@ -25,19 +24,6 @@ const COLOR_SWATCHES = [
   '#FF6B81',
 ];
 
-const ICON_OPTIONS = [
-  'camera',
-  'map',
-  'compass',
-  'cafe',
-  'sunny',
-  'musical-notes',
-  'bicycle',
-  'restaurant',
-  'wine',
-  'boat',
-] as const;
-
 export default function EditCategory() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -46,7 +32,6 @@ export default function EditCategory() {
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
   const [color, setColor] = useState(COLOR_SWATCHES[0]);
-  const [icon, setIcon] = useState<string>(ICON_OPTIONS[2]);
 
   const category = catContext?.categories.find(c => c.id === Number(id));
 
@@ -54,7 +39,6 @@ export default function EditCategory() {
     if (!category) return;
     setName(category.name);
     setColor(category.color);
-    setIcon(category.icon);
   }, [category]);
 
   if (!catContext || !category) return null;
@@ -67,7 +51,7 @@ export default function EditCategory() {
     setNameError('');
     await db
       .update(categoriesTable)
-      .set({ name: name.trim(), color, icon })
+      .set({ name: name.trim(), color })
       .where(eq(categoriesTable.id, Number(id)));
     if (authContext?.user) await catContext.refreshCategories(authContext.user.id);
     router.back();
@@ -90,17 +74,6 @@ export default function EditCategory() {
           {COLOR_SWATCHES.map(swatch => (
             <Pressable key={swatch} onPress={() => setColor(swatch)} accessibilityLabel={`Select colour ${swatch}`} accessibilityRole="radio" accessibilityState={{ checked: color === swatch }}>
               <View style={[styles.swatch, { backgroundColor: swatch }, color === swatch ? styles.swatchSelected : styles.swatchUnselected]} />
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={styles.sectionLabel}>Icon</Text>
-        <View style={styles.iconRow}>
-          {ICON_OPTIONS.map(opt => (
-            <Pressable key={opt} onPress={() => setIcon(opt)} accessibilityLabel={`Select icon ${opt}`} accessibilityRole="radio" accessibilityState={{ checked: icon === opt }}>
-              <View style={[styles.iconButton, icon === opt ? styles.iconSelected : styles.iconUnselected]}>
-                <Ionicons name={opt as any} size={22} color={icon === opt ? Palette.ink : Palette.inkHint} />
-              </View>
             </Pressable>
           ))}
         </View>

@@ -8,7 +8,7 @@ export async function seedIfEmpty() {
 
   const passwordHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, 'demo1234');
   const [user] = await db.insert(usersTable).values({
-    name: 'Molly',
+    name: 'Jane',
     email: 'demo@aistear.com',
     passwordHash,
     createdAt: new Date().toISOString(),
@@ -69,8 +69,8 @@ export async function seedIfEmpty() {
         userId: user.id,
         name: 'Summer in Lisbon',
         destination: 'Lisbon, Portugal',
-        startDate: '2026-06-12',
-        endDate: '2026-06-18',
+        startDate: '2026-04-26',
+        endDate: '2026-05-01',
         notes: 'Looking forward to exploring the city!',
         country: 'Portugal',
       },
@@ -132,6 +132,15 @@ export async function seedIfEmpty() {
     { tripId: nyc.id, categoryId: sightseeing.id, name: 'Brooklyn Bridge walk',               date: '2025-12-24', location: 'Brooklyn Bridge, NYC',        cost: null,   durationMins: 60,  notes: null },
     { tripId: nyc.id, categoryId: food.id,        name: 'Christmas Eve dinner at Gramercy Tavern', date: '2025-12-24', location: 'Gramercy Tavern, NYC', cost: '€140', durationMins: 150, notes: 'Perfect Christmas Eve' },
     { tripId: nyc.id, categoryId: shopping.id,    name: "Macy's and SoHo shopping",           date: '2025-12-26', location: "Macy's Herald Square, NYC",  cost: '€180', durationMins: 180, notes: 'Boxing Day sales were insane' },
+
+    // Summer in Lisbon
+    { tripId: _lisbon.id, categoryId: sightseeing.id, name: 'Belém Tower & Jerónimos Monastery', date: '2026-04-26', location: 'Belém, Lisbon',              cost: '€14',  durationMins: 150, notes: 'The monastery is absolutely stunning' },
+    { tripId: _lisbon.id, categoryId: food.id,        name: 'Pastéis de Belém',                  date: '2026-04-26', location: 'Antiga Confeitaria de Belém', cost: '€6',   durationMins: 45,  notes: 'Best pastel de nata in the world, no contest' },
+    { tripId: _lisbon.id, categoryId: sightseeing.id, name: 'Alfama neighbourhood walk',          date: '2026-04-27', location: 'Alfama, Lisbon',              cost: null,   durationMins: 120, notes: 'Got wonderfully lost in the streets' },
+    { tripId: _lisbon.id, categoryId: food.id,        name: 'Dinner at Time Out Market',          date: '2026-04-27', location: 'Mercado da Ribeira, Lisbon',  cost: '€30',  durationMins: 90,  notes: null },
+    { tripId: _lisbon.id, categoryId: nature.id,      name: 'Sintra day trip',                    date: '2026-04-28', location: 'Sintra, Portugal',            cost: '€22',  durationMins: 360, notes: 'Pena Palace was worth every step of the climb' },
+    { tripId: _lisbon.id, categoryId: nightlife.id,   name: 'Fado show in Bairro Alto',           date: '2026-04-29', location: 'Bairro Alto, Lisbon',         cost: '€25',  durationMins: 120, notes: 'Unexpectedly emotional' },
+    { tripId: _lisbon.id, categoryId: sightseeing.id, name: 'LX Factory Sunday market',           date: '2026-04-30', location: 'LX Factory, Lisbon',          cost: '€40',  durationMins: 150, notes: 'Bought too much, regret nothing' },
   ]);
 
   await db.insert(targetsTable).values([

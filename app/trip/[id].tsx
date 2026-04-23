@@ -53,6 +53,8 @@ export default function TripDetail() {
 
   if (!trip) return null;
 
+  const hasReflection = trip.reflectMemory || trip.reflectMeal || trip.reflectSpot || trip.reflectNotes;
+
   const categories = catContext?.categories ?? [];
 
   const parseCost = (val: string | null) => {
@@ -192,6 +194,36 @@ export default function TripDetail() {
           <PrimaryButton compact label="+ Add Accommodation" variant="secondary"
             onPress={() => router.push({ pathname: '/trip/[id]/add-accommodation', params: { id } })} />
         </View>
+
+        {hasReflection && (
+          <View style={styles.metaCard}>
+            <Text style={styles.metaCardTitle}>Reflections</Text>
+            {trip.reflectMemory ? (
+              <View style={styles.reflectRow}>
+                <Text style={styles.reflectLabel}>Favourite Memory</Text>
+                <Text style={styles.reflectValue}>{trip.reflectMemory}</Text>
+              </View>
+            ) : null}
+            {trip.reflectMeal ? (
+              <View style={styles.reflectRow}>
+                <Text style={styles.reflectLabel}>Favourite Meal</Text>
+                <Text style={styles.reflectValue}>{trip.reflectMeal}</Text>
+              </View>
+            ) : null}
+            {trip.reflectSpot ? (
+              <View style={styles.reflectRow}>
+                <Text style={styles.reflectLabel}>Favourite Spot</Text>
+                <Text style={styles.reflectValue}>{trip.reflectSpot}</Text>
+              </View>
+            ) : null}
+            {trip.reflectNotes ? (
+              <View style={[styles.reflectRow, styles.reflectRowLast]}>
+                <Text style={styles.reflectLabel}>Notes</Text>
+                <Text style={styles.reflectValue}>{trip.reflectNotes}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
 
         {totalCost > 0 && (
           <View style={styles.metaCard}>
@@ -368,5 +400,27 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 14,
     textAlign: 'center',
+  },
+  reflectRow: {
+    borderBottomColor: Palette.border,
+    borderBottomWidth: 0.5,
+    marginBottom: 10,
+    paddingBottom: 10,
+  },
+  reflectRowLast: {
+    borderBottomWidth: 0,
+    marginBottom: 0,
+    paddingBottom: 0,
+  },
+  reflectLabel: {
+    color: Palette.inkSecondary,
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 3,
+  },
+  reflectValue: {
+    color: Palette.ink,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

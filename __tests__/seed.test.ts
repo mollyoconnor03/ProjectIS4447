@@ -33,7 +33,7 @@ describe('seedIfEmpty', () => {
 
   beforeEach(() => {
     mockReturning = jest.fn()
-      .mockResolvedValueOnce([{ id: 1, name: 'Molly', email: 'demo@aistear.com', passwordHash: 'mock_hash' }])
+      .mockResolvedValueOnce([{ id: 1, name: 'Jane', email: 'demo@aistear.com', passwordHash: 'mock_hash' }])
       .mockResolvedValueOnce([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }])
       .mockResolvedValueOnce([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }]);
 
@@ -50,11 +50,11 @@ describe('seedIfEmpty', () => {
     jest.clearAllMocks();
   });
 
-  it('inserts a user named Molly when no users exist', async () => {
+  it('inserts a user named Jane when no users exist', async () => {
     await seedIfEmpty();
     expect(mockInsert).toHaveBeenCalled();
     expect(mockValues).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Molly' })
+      expect.objectContaining({ name: 'Jane' })
     );
   });
 

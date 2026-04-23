@@ -93,6 +93,10 @@ try { sqlite.execSync(`ALTER TABLE activities ADD COLUMN duration_mins INTEGER;`
 try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN latitude REAL;`); } catch (_) {}
 try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN longitude REAL;`); } catch (_) {}
 try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN country TEXT;`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN reflect_memory TEXT;`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN reflect_meal TEXT;`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN reflect_spot TEXT;`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN reflect_notes TEXT;`); } catch (_) {}
 sqlite.execSync(`
 CREATE TABLE IF NOT EXISTS transport (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

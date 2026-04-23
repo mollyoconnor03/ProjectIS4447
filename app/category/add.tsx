@@ -4,7 +4,6 @@ import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
 import { categoriesTable } from '@/db/schema';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { useContext, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -24,19 +23,6 @@ const COLOR_SWATCHES = [
   '#FF6B81',
 ];
 
-const ICON_OPTIONS = [
-  'camera',
-  'map',
-  'compass',
-  'cafe',
-  'sunny',
-  'musical-notes',
-  'bicycle',
-  'restaurant',
-  'wine',
-  'boat',
-] as const;
-
 export default function AddCategory() {
   const router = useRouter();
   const authContext = useContext(AuthContext);
@@ -44,7 +30,6 @@ export default function AddCategory() {
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
   const [color, setColor] = useState(COLOR_SWATCHES[0]);
-  const [icon, setIcon] = useState<string>(ICON_OPTIONS[2]);
 
   const saveCategory = async () => {
     if (!name.trim()) {
@@ -55,7 +40,7 @@ export default function AddCategory() {
     await db.insert(categoriesTable).values({
       name: name.trim(),
       color,
-      icon,
+      icon: 'compass',
       userId: authContext?.user?.id ?? null,
     });
     if (authContext?.user) await catContext?.refreshCategories(authContext.user.id);
@@ -79,17 +64,6 @@ export default function AddCategory() {
           {COLOR_SWATCHES.map(swatch => (
             <Pressable key={swatch} onPress={() => setColor(swatch)} accessibilityLabel={`Select colour ${swatch}`} accessibilityRole="radio" accessibilityState={{ checked: color === swatch }}>
               <View style={[styles.swatch, { backgroundColor: swatch }, color === swatch ? styles.swatchSelected : styles.swatchUnselected]} />
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={styles.sectionLabel}>Icon</Text>
-        <View style={styles.iconRow}>
-          {ICON_OPTIONS.map(opt => (
-            <Pressable key={opt} onPress={() => setIcon(opt)} accessibilityLabel={`Select icon ${opt}`} accessibilityRole="radio" accessibilityState={{ checked: icon === opt }}>
-              <View style={[styles.iconButton, icon === opt ? styles.iconSelected : styles.iconUnselected]}>
-                <Ionicons name={opt as any} size={22} color={icon === opt ? Palette.ink : Palette.inkHint} />
-              </View>
             </Pressable>
           ))}
         </View>
