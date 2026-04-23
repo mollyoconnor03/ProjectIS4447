@@ -44,6 +44,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6fbd87c4-beef-4edc-8692-f691249c10a5"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6fbd87c4-beef-4edc-8692-f691249c10a5"
+    },
+    "owner": "mollyoc12"
   }
 }
