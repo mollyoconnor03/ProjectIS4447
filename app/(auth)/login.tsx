@@ -8,7 +8,7 @@ import { usersTable } from '@/db/schema';
 import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { useContext, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { eq } from 'drizzle-orm';
 import { AuthContext } from '../_layout';
@@ -55,8 +55,8 @@ export default function Login() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.eyebrow}>
-          <Text style={styles.eyebrowText}>YOUR TRAVEL JOURNAL</Text>
+        <View style={styles.logoWrap}>
+          <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
         </View>
 
         <ScreenHeader title="Welcome Back" subtitle="Sign in to continue your journey." />
@@ -69,7 +69,7 @@ export default function Login() {
 
         <PrimaryButton label={loading ? 'Signing in…' : 'Sign In'} onPress={signIn} />
 
-        <Pressable onPress={() => router.push('/(auth)/register')} style={styles.linkRow}>
+        <Pressable onPress={() => router.push('/(auth)/register')} style={styles.linkRow} accessibilityLabel="Create a new account" accessibilityRole="button">
           <Text style={styles.link}>New here? </Text>
           <Text style={[styles.link, styles.linkAccent]}>Begin your journey.</Text>
         </Pressable>
@@ -89,14 +89,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 40,
   },
-  eyebrow: {
-    marginBottom: 20,
+  logoWrap: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  eyebrowText: {
-    color: Palette.inkHint,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 2,
+  logo: {
+    height: 160,
+    width: 160,
   },
   form: {
     marginBottom: 8,

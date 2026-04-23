@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: Palette.inkSecondary,
-    fontFamily: 'DMSerifDisplay_400Regular',
+
     fontStyle: 'italic',
     fontSize: 16,
     lineHeight: 24,

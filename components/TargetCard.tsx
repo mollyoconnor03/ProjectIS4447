@@ -6,51 +6,72 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 type Props = {
   target: Target;
   progress: number;
-  categoryName: string | null;
   tripName: string | null;
-  periodEndsSoon: boolean;
+  categoryName: string | null;
   onEdit: () => void;
   onDelete: () => void;
 };
 
-export default function TargetCard({ target, progress, categoryName, tripName, onEdit, onDelete }: Props) {
-  const exceeded = progress >= target.targetValue;
-  const fill = Math.min(progress / target.targetValue, 1);
+function progressLabel(target: Target, progress: number): string {
+  if (target.type === 'spending') {
+    return `€${progress.toFixed(2)} of €${target.targetValue.toFixed(2)}`;
+  }
+  if (target.type === 'trips_count') {
+    return `${progress} / ${target.targetValue} trip${target.targetValue !== 1 ? 's' : ''}`;
+  }
+  return `${progress} / ${target.targetValue} ${target.targetValue !== 1 ? 'activities' : 'activity'}`;
+}
+
+function periodLabel(period: string | null): string {
+  if (period === 'monthly') return 'Monthly';
+  if (period === 'quarterly') return 'Quarterly';
+  return period ?? '';
+}
+
+export default function TargetCard({ target, progress, tripName, categoryName, onEdit, onDelete }: Props) {
+  const isSpending = target.type === 'spending';
+  const pct = Math.min(progress / target.targetValue, 1);
+  const met = isSpending ? progress <= target.targetValue : progress >= target.targetValue;
 
   const confirmDelete = () => {
-    Alert.alert(
-      'Delete Target',
-      'This will permanently delete this target.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: onDelete },
-      ]
-    );
+    Alert.alert('Delete Target', 'Remove this target?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: onDelete },
+    ]);
   };
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>{target.label}</Text>
-      <Text style={styles.period}>{target.period === 'weekly' ? 'Weekly' : 'Monthly'}</Text>
-
-      <View style={styles.metaRow}>
-        {categoryName ? <Text style={styles.meta}>Category: {categoryName}</Text> : null}
-        {tripName ? <Text style={styles.meta}>Trip: {tripName}</Text> : null}
+      <View style={styles.topRow}>
+        <Text style={styles.label} numberOfLines={1}>{target.label}</Text>
+        {target.type === 'activity' && tripName
+          ? <Text style={styles.badge}>{tripName}</Text>
+          : <Text style={styles.badge}>{periodLabel(target.period)}</Text>
+        }
       </View>
 
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${fill * 100}%` as any }]} />
-      </View>
-
-      <Text style={styles.progressText}>
-        {progress} / {target.targetValue} activities{exceeded ? '  ✓' : ''}
+      <Text style={styles.sub}>
+        {target.type === 'activity'
+          ? (categoryName ?? 'All activities')
+          : target.type === 'spending'
+          ? 'Spending limit'
+          : 'Trips per period'}
       </Text>
 
-      <View style={styles.buttonRow}>
-        <View style={styles.buttonWrap}>
+      <View style={styles.trackRow}>
+        <View style={styles.track}>
+          <View style={[styles.fill, { width: `${pct * 100}%`, backgroundColor: isSpending ? (met ? '#4a7c59' : Palette.danger) : (met ? '#4a7c59' : Palette.terracotta) }]} />
+        </View>
+        {met && <Text style={styles.metLabel}>{isSpending ? 'Under budget' : 'Met'}</Text>}
+      </View>
+
+      <Text style={styles.progressText}>{progressLabel(target, progress)}</Text>
+
+      <View style={styles.btnRow}>
+        <View style={styles.btn}>
           <PrimaryButton compact label="Edit" variant="secondary" onPress={onEdit} />
         </View>
-        <View style={styles.buttonWrap}>
+        <View style={styles.btn}>
           <PrimaryButton compact label="Delete" variant="danger" onPress={confirmDelete} />
         </View>
       </View>
@@ -62,54 +83,68 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
-    borderWidth: 0.5,
+    borderWidth: 1,
+    elevation: 2,
     marginBottom: 10,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+  },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 3,
   },
   label: {
     color: Palette.ink,
-    fontFamily: 'DMSerifDisplay_400Regular',
+    flex: 1,
+
     fontSize: 16,
-    marginBottom: 2,
+    marginRight: 8,
   },
-  period: {
+  badge: {
     color: Palette.inkSecondary,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.0,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  sub: {
+    color: Palette.inkSecondary,
+    fontSize: 11,
+    marginBottom: 12,
+  },
+  trackRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
     marginBottom: 6,
-    textTransform: 'uppercase',
   },
-  metaRow: {
-    gap: 2,
-    marginBottom: 4,
-  },
-  meta: {
-    color: Palette.inkSecondary,
-    fontSize: 12,
-  },
-  progressTrack: {
+  track: {
     backgroundColor: Palette.border,
+    flex: 1,
     height: 3,
-    marginBottom: 6,
-    marginTop: 8,
   },
-  progressFill: {
-    backgroundColor: Palette.terracotta,
+  fill: {
     height: 3,
+  },
+  metLabel: {
+    color: '#4a7c59',
+    fontSize: 11,
+    fontWeight: '600',
   },
   progressText: {
     color: Palette.inkSecondary,
     fontSize: 12,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  buttonRow: {
+  btnRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  buttonWrap: {
+  btn: {
     flex: 1,
   },
 });

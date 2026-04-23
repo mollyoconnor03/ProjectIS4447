@@ -36,19 +36,17 @@ sqlite.execSync(`
 CREATE TABLE IF NOT EXISTS targets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER,
+  type TEXT NOT NULL DEFAULT 'activity',
+  label TEXT NOT NULL,
   trip_id INTEGER,
   category_id INTEGER,
-  label TEXT NOT NULL,
-  period TEXT NOT NULL DEFAULT 'weekly',
-  target_value INTEGER NOT NULL
+  period TEXT,
+  target_value REAL NOT NULL DEFAULT 0
 );
 `);
-try {
-  sqlite.execSync(`ALTER TABLE targets ADD COLUMN user_id INTEGER;`);
-} catch (_) {}
-try {
-  sqlite.execSync(`ALTER TABLE targets ADD COLUMN period TEXT NOT NULL DEFAULT 'weekly';`);
-} catch (_) {}
+// safe migrations for existing installs
+try { sqlite.execSync(`ALTER TABLE targets ADD COLUMN type TEXT NOT NULL DEFAULT 'activity';`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE targets ADD COLUMN period TEXT;`); } catch (_) {}
 sqlite.execSync(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,4 +89,30 @@ try {
 try {
   sqlite.execSync(`ALTER TABLE activities ADD COLUMN participants TEXT;`);
 } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE activities ADD COLUMN duration_mins INTEGER;`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN latitude REAL;`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN longitude REAL;`); } catch (_) {}
+try { sqlite.execSync(`ALTER TABLE trips ADD COLUMN country TEXT;`); } catch (_) {}
+sqlite.execSync(`
+CREATE TABLE IF NOT EXISTS transport (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  trip_id INTEGER NOT NULL,
+  type TEXT NOT NULL DEFAULT 'other',
+  description TEXT NOT NULL,
+  date TEXT NOT NULL,
+  cost TEXT,
+  notes TEXT
+);
+`);
+sqlite.execSync(`
+CREATE TABLE IF NOT EXISTS accommodations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  trip_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  check_in TEXT NOT NULL,
+  check_out TEXT NOT NULL,
+  cost TEXT,
+  notes TEXT
+);
+`);
 export const db = drizzle(sqlite);

@@ -12,16 +12,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext, CategoryContext } from '../_layout';
 
 const COLOR_SWATCHES = [
-  '#C4622D',
-  '#2D6A8F',
-  '#2D7A4F',
-  '#7A5C2D',
-  '#6B2D7A',
-  '#2D6B7A',
-  '#8B1A1A',
-  '#7A2D5C',
-  '#4A7A2D',
-  '#7A6B2D',
+  '#FF6B6B',
+  '#FF9F43',
+  '#FECA57',
+  '#48DBFB',
+  '#1DD1A1',
+  '#54A0FF',
+  '#5F27CD',
+  '#FF9FF3',
+  '#00D2D3',
+  '#FF6B81',
 ];
 
 const ICON_OPTIONS = [
@@ -77,7 +77,7 @@ export default function AddCategory() {
         <Text style={styles.sectionLabel}>Colour</Text>
         <View style={styles.swatchRow}>
           {COLOR_SWATCHES.map(swatch => (
-            <Pressable key={swatch} onPress={() => setColor(swatch)}>
+            <Pressable key={swatch} onPress={() => setColor(swatch)} accessibilityLabel={`Select colour ${swatch}`} accessibilityRole="radio" accessibilityState={{ checked: color === swatch }}>
               <View style={[styles.swatch, { backgroundColor: swatch }, color === swatch ? styles.swatchSelected : styles.swatchUnselected]} />
             </Pressable>
           ))}
@@ -86,7 +86,7 @@ export default function AddCategory() {
         <Text style={styles.sectionLabel}>Icon</Text>
         <View style={styles.iconRow}>
           {ICON_OPTIONS.map(opt => (
-            <Pressable key={opt} onPress={() => setIcon(opt)}>
+            <Pressable key={opt} onPress={() => setIcon(opt)} accessibilityLabel={`Select icon ${opt}`} accessibilityRole="radio" accessibilityState={{ checked: icon === opt }}>
               <View style={[styles.iconButton, icon === opt ? styles.iconSelected : styles.iconUnselected]}>
                 <Ionicons name={opt as any} size={22} color={icon === opt ? Palette.ink : Palette.inkHint} />
               </View>
@@ -117,9 +117,7 @@ const styles = StyleSheet.create({
     color: Palette.inkSecondary,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.2,
     marginBottom: 10,
-    textTransform: 'uppercase',
   },
   swatchRow: {
     flexDirection: 'row',

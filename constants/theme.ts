@@ -1,11 +1,11 @@
 export const Palette = {
-  background: '#F9F8F6',
+  background: '#FEFEFE',
   cardBackground: '#FFFFFF',
-  terracotta: '#C4622D',
+  terracotta: '#2C3E50',
   ink: '#1a1a1a',
-  inkSecondary: '#888888',
-  inkHint: '#bbbbbb',
-  border: '#e8e8e8',
+  inkSecondary: '#555555',
+  inkHint: '#aaaaaa',
+  border: '#B2DEDE',
   danger: '#9B2335',
   white: '#FFFFFF',
 };

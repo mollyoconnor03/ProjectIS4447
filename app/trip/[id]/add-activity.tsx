@@ -1,63 +1,19 @@
+import DateField from '@/components/ui/date-field';
 import FormField from '@/components/ui/form-field';
 import PrimaryButton from '@/components/ui/primary-button';
 import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
 import { activitiesTable } from '@/db/schema';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext, CategoryContext, Trip, TripContext } from '../../_layout';
 
 function toLocalDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
-function DateField({ label, date, onChange }: { label: string; date: Date; onChange: (d: Date) => void }) {
-  const [show, setShow] = useState(false);
-  return (
-    <View style={dateStyles.wrapper}>
-      <Text style={dateStyles.label}>{label}</Text>
-      <Pressable onPress={() => setShow(true)} style={dateStyles.button}>
-        <Text style={dateStyles.value}>{toLocalDate(date)}</Text>
-      </Pressable>
-      {show && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="default"
-          onChange={(_, selected) => {
-            if (Platform.OS === 'android') setShow(false);
-            if (selected) onChange(selected);
-          }}
-        />
-      )}
-    </View>
-  );
-}
-
-const dateStyles = StyleSheet.create({
-  wrapper: { marginBottom: 16 },
-  label: {
-    color: Palette.inkSecondary,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  button: {
-    backgroundColor: Palette.cardBackground,
-    borderColor: Palette.border,
-    borderRadius: 0,
-    borderWidth: 0.5,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  value: { color: Palette.ink, fontSize: 15 },
-});
 
 export default function AddActivity() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -86,6 +42,9 @@ export default function AddActivity() {
   const [cost, setCost] = useState('');
   const [participants, setParticipants] = useState('');
   const [notes, setNotes] = useState('');
+  const [durationHrs, setDurationHrs] = useState('');
+  const [durationMins, setDurationMins] = useState('');
+  const [durationError, setDurationError] = useState('');
 
   const categories = catContext?.categories ?? [];
 
@@ -93,6 +52,8 @@ export default function AddActivity() {
     let valid = true;
     if (!name.trim()) { setNameError('Activity name is required.'); valid = false; } else { setNameError(''); }
     if (categoryId === null) { setCategoryError('Please select a category.'); valid = false; } else { setCategoryError(''); }
+    const totalMins = parseInt(durationHrs || '0') * 60 + parseInt(durationMins || '0');
+    if (isNaN(totalMins) || totalMins <= 0) { setDurationError('Duration is required.'); valid = false; } else { setDurationError(''); }
     if (!valid) return;
 
     await db.insert(activitiesTable).values({
@@ -105,6 +66,7 @@ export default function AddActivity() {
       cost: cost.trim() || null,
       participants: participants.trim() || null,
       notes: notes.trim() || null,
+      durationMins: (durationHrs || durationMins) ? (parseInt(durationHrs || '0') * 60 + parseInt(durationMins || '0')) : null,
     });
 
     if (authContext?.user) await tripContext?.refreshTrips(authContext.user.id);
@@ -133,7 +95,7 @@ export default function AddActivity() {
             {categories.map(cat => {
               const selected = categoryId === cat.id;
               return (
-                <Pressable key={cat.id} onPress={() => { setCategoryId(cat.id); if (categoryError) setCategoryError(''); }}>
+                <Pressable key={cat.id} onPress={() => { setCategoryId(cat.id); if (categoryError) setCategoryError(''); }} accessibilityLabel={`Select category: ${cat.name}`} accessibilityRole="radio" accessibilityState={{ checked: categoryId === cat.id }}>
                   <View style={[styles.pill, selected ? { borderColor: cat.color, borderWidth: 1 } : styles.pillInactive]}>
                     <View style={[styles.pillDot, { backgroundColor: cat.color }]} />
                     <Text style={[styles.pillLabel, selected && styles.pillLabelSelected]}>{cat.name}</Text>
@@ -144,6 +106,35 @@ export default function AddActivity() {
           </View>
         )}
         {categoryError ? <Text style={styles.fieldError}>{categoryError}</Text> : null}
+
+        <Text style={styles.sectionLabel}>Duration</Text>
+        <View style={styles.durationRow}>
+          <View style={styles.durationField}>
+            <TextInput
+              style={styles.durationInput}
+              value={durationHrs}
+              onChangeText={t => { setDurationHrs(t); if (durationError) setDurationError(''); }}
+              placeholder="0"
+              placeholderTextColor={Palette.inkHint}
+              keyboardType="number-pad"
+              accessibilityLabel="Duration hours"
+            />
+            <Text style={styles.durationUnit}>h</Text>
+          </View>
+          <View style={styles.durationField}>
+            <TextInput
+              style={styles.durationInput}
+              value={durationMins}
+              onChangeText={t => { setDurationMins(t); if (durationError) setDurationError(''); }}
+              placeholder="0"
+              placeholderTextColor={Palette.inkHint}
+              keyboardType="number-pad"
+              accessibilityLabel="Duration minutes"
+            />
+            <Text style={styles.durationUnit}>m</Text>
+          </View>
+        </View>
+        {durationError ? <Text style={styles.fieldError}>{durationError}</Text> : null}
 
         <FormField label="Start Time (optional)" value={startTime} onChangeText={setStartTime} placeholder="e.g. 10:00 AM" />
         <FormField label="Location (optional)" value={location} onChangeText={setLocation} placeholder="e.g. Colosseum, Rome" />
@@ -174,9 +165,7 @@ const styles = StyleSheet.create({
     color: Palette.inkSecondary,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.2,
     marginBottom: 10,
-    textTransform: 'uppercase',
   },
   hint: {
     color: Palette.inkSecondary,
@@ -203,7 +192,6 @@ const styles = StyleSheet.create({
     borderColor: Palette.border,
   },
   pillDot: {
-    borderRadius: 4,
     height: 7,
     width: 7,
   },
@@ -223,5 +211,33 @@ const styles = StyleSheet.create({
   },
   gap: {
     marginTop: 10,
+  },
+  optional: {
+    color: Palette.inkHint,
+    fontWeight: '400',
+  },
+  durationRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  durationField: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  durationInput: {
+    backgroundColor: Palette.cardBackground,
+    borderColor: Palette.border,
+    borderWidth: 0.5,
+    color: Palette.ink,
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    width: 64,
+  },
+  durationUnit: {
+    color: Palette.inkSecondary,
+    fontSize: 14,
   },
 });

@@ -1,5 +1,5 @@
 import { Palette } from '@/constants/theme';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardTypeOptions, StyleSheet, Text, TextInput, View } from 'react-native';
 
 type Props = {
   label: string;
@@ -10,9 +10,10 @@ type Props = {
   error?: string;
   multiline?: boolean;
   numberOfLines?: number;
+  keyboardType?: KeyboardTypeOptions;
 };
 
-export default function FormField({ label, value, onChangeText, placeholder, secureTextEntry, error, multiline, numberOfLines }: Props) {
+export default function FormField({ label, value, onChangeText, placeholder, secureTextEntry, error, multiline, numberOfLines, keyboardType }: Props) {
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
@@ -24,6 +25,8 @@ export default function FormField({ label, value, onChangeText, placeholder, sec
         secureTextEntry={secureTextEntry}
         multiline={multiline}
         numberOfLines={multiline ? (numberOfLines ?? 3) : undefined}
+        keyboardType={keyboardType}
+        accessibilityLabel={label}
         style={[styles.input, multiline ? styles.multilineInput : null, error ? styles.inputError : null]}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -39,9 +42,7 @@ const styles = StyleSheet.create({
     color: Palette.inkSecondary,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.2,
     marginBottom: 6,
-    textTransform: 'uppercase',
   },
   input: {
     backgroundColor: Palette.cardBackground,

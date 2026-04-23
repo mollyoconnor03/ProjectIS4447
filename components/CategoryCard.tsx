@@ -59,11 +59,16 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Palette.cardBackground,
     borderColor: Palette.border,
-    borderWidth: 0.5,
+    borderWidth: 1,
+    elevation: 2,
     marginBottom: 10,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingBottom: 14,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
   row: {
     alignItems: 'center',
@@ -71,7 +76,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   dot: {
-    borderRadius: 4,
     height: 8,
     marginRight: 8,
     width: 8,
@@ -81,7 +85,7 @@ const styles = StyleSheet.create({
   },
   name: {
     color: Palette.ink,
-    fontFamily: 'DMSerifDisplay_400Regular',
+
     fontSize: 16,
   },
   buttonRow: {

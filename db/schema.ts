@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const usersTable = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -18,6 +18,9 @@ export const tripsTable = sqliteTable('trips', {
   notes: text('notes'),
   accommodationName: text('accommodation_name'),
   accommodationCost: text('accommodation_cost'),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  country: text('country'),
 });
 
 export const categoriesTable = sqliteTable('categories', {
@@ -39,14 +42,36 @@ export const activitiesTable = sqliteTable('activities', {
   cost: text('cost'),
   participants: text('participants'),
   notes: text('notes'),
+  durationMins: integer('duration_mins'),
+});
+
+export const transportTable = sqliteTable('transport', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  tripId: integer('trip_id').notNull(),
+  type: text('type').notNull().default('other'), // 'flight'|'bus'|'train'|'ferry'|'other'
+  description: text('description').notNull(),
+  date: text('date').notNull(),
+  cost: text('cost'),
+  notes: text('notes'),
+});
+
+export const accommodationsTable = sqliteTable('accommodations', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  tripId: integer('trip_id').notNull(),
+  name: text('name').notNull(),
+  checkIn: text('check_in').notNull(),
+  checkOut: text('check_out').notNull(),
+  cost: text('cost'),
+  notes: text('notes'),
 });
 
 export const targetsTable = sqliteTable('targets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id'),
-  tripId: integer('trip_id'),
-  categoryId: integer('category_id'),
+  type: text('type').notNull().default('activity'), // 'activity' | 'trips_count' | 'spending'
   label: text('label').notNull(),
-  period: text('period').notNull(),
-  targetValue: integer('target_value').notNull(),
+  tripId: integer('trip_id'),       // activity targets only
+  categoryId: integer('category_id'), // activity targets only
+  period: text('period'),            // period goals only: 'monthly' | 'quarterly'
+  targetValue: real('target_value').notNull(),
 });

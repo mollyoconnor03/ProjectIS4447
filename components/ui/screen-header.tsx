@@ -25,14 +25,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: Palette.ink,
-    fontFamily: 'DMSerifDisplay_400Regular',
-    fontSize: 26,
-    lineHeight: 32,
+
+    fontSize: 28,
+    lineHeight: 34,
   },
   subtitle: {
-    color: Palette.inkSecondary,
-    fontSize: 12,
-    marginTop: 3,
+    color: Palette.ink,
+    fontSize: 13,
+    marginTop: 4,
   },
   centered: {
     alignItems: 'center',

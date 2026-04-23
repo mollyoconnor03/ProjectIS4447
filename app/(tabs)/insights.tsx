@@ -1,23 +1,24 @@
 import { Activity, AuthContext, Category, CategoryContext, Target, Trip, TripContext } from '@/app/_layout';
+import DonutChart from '@/components/DonutChart';
+import StackedTripChart, { DayBar } from '@/components/StackedTripChart';
 import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
 import { activitiesTable, targetsTable } from '@/db/schema';
+import { StreakResult, calculateStreak } from '@/utils/streak';
 import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle, Path } from 'react-native-svg';
-
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 type Period = 'daily' | 'weekly' | 'monthly';
 
+const TRIP_COLORS = ['#54A0FF', '#FF6B6B', '#1DD1A1', '#FF9F43', '#5F27CD', '#48DBFB'];
+
 const PERIOD_LABELS: Record<Period, string> = {
-  daily: '7 Days',
-  weekly: '6 Weeks',
-  monthly: '6 Months',
+  daily: 'Last 7 days',
+  weekly: 'Last 6 weeks',
+  monthly: 'Last 6 months',
 };
 
 function periodLabel(period: Period): string {
@@ -45,289 +46,53 @@ function getDateRange(period: Period) {
   return { start: toLocalDate(s), end };
 }
 
-function groupActivities(activities: Activity[], period: Period): { label: string; count: number }[] {
-  const n = new Date();
-
-  if (period === 'daily') {
-    return Array.from({ length: 7 }, (_, i) => {
-      const day = new Date(n); day.setDate(n.getDate() - (6 - i));
-      const key = toLocalDate(day);
-      const label = day.toLocaleDateString('en', { weekday: 'short' }).slice(0, 2);
-      return { label, count: activities.filter(a => a.date === key).length };
+function buildTripDays(tripId: number, trip: Trip, activities: Activity[], categories: Category[]): DayBar[] {
+  const days: DayBar[] = [];
+  const start = new Date(trip.startDate + 'T12:00:00');
+  const end = new Date(trip.endDate + 'T12:00:00');
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = toLocalDate(d);
+    const dayActs = activities.filter(a => a.tripId === tripId && a.date === dateStr);
+    const catMap = new Map<number | null, { color: string; count: number }>();
+    for (const a of dayActs) {
+      const cat = categories.find(c => c.id === a.categoryId);
+      const color = cat?.color ?? Palette.inkHint;
+      const prev = catMap.get(a.categoryId) ?? { color, count: 0 };
+      catMap.set(a.categoryId, { color, count: prev.count + 1 });
+    }
+    days.push({
+      date: dateStr,
+      label: d.toLocaleDateString('en', { weekday: 'short' }).slice(0, 2),
+      total: dayActs.length,
+      segments: Array.from(catMap.values()),
     });
   }
-  if (period === 'weekly') {
-    return Array.from({ length: 6 }, (_, i) => {
-      const wEnd = new Date(n); wEnd.setDate(n.getDate() - (5 - i) * 7);
-      const wStart = new Date(wEnd); wStart.setDate(wEnd.getDate() - 6);
-      const s = toLocalDate(wStart);
-      const e = toLocalDate(wEnd);
-      return { label: `W${i + 1}`, count: activities.filter(a => a.date >= s && a.date <= e).length };
-    });
-  }
-  return Array.from({ length: 6 }, (_, i) => {
-    const first = new Date(n.getFullYear(), n.getMonth() - (5 - i), 1);
-    const last = new Date(n.getFullYear(), n.getMonth() - (5 - i) + 1, 0);
-    const s = toLocalDate(first);
-    const e = toLocalDate(last);
-    const label = first.toLocaleDateString('en', { month: 'short' });
-    return { label, count: activities.filter(a => a.date >= s && a.date <= e).length };
-  });
-}
-
-function getPeriodRange(period: 'weekly' | 'monthly') {
-  const now = new Date();
-  if (period === 'weekly') {
-    const day = now.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const start = new Date(now); start.setDate(now.getDate() + diff);
-    const end = new Date(start); end.setDate(start.getDate() + 6);
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
-  }
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  return days;
 }
 
 function computeProgress(target: Target, activities: Activity[]): number {
-  const { start, end } = getPeriodRange(target.period);
+  if (target.type !== 'activity') return 0;
   return activities.filter(a => {
-    if (a.date < start || a.date > end) return false;
+    if (a.tripId !== target.tripId) return false;
     if (target.categoryId !== null && a.categoryId !== target.categoryId) return false;
-    if (target.tripId !== null && a.tripId !== target.tripId) return false;
     return true;
   }).length;
 }
-
-// ─── bar chart ──────────────────────────────────────────────────────────────
-
-const CHART_HEIGHT = 160;
-
-function BarChart({ data }: { data: { label: string; count: number }[] }) {
-  const maxVal = Math.max(...data.map(d => d.count), 1);
-  const gridLines = [0.25, 0.5, 0.75, 1];
-
-  return (
-    <View>
-      <View style={{ height: CHART_HEIGHT, position: 'relative' }}>
-        {gridLines.map(frac => (
-          <View
-            key={frac}
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: CHART_HEIGHT * (1 - frac),
-              height: 0.5,
-              backgroundColor: Palette.border,
-            }}
-          />
-        ))}
-        <View style={barStyles.barsRow}>
-          {data.map((item, i) => {
-            const barH = Math.max((item.count / maxVal) * CHART_HEIGHT, item.count > 0 ? 4 : 0);
-            return (
-              <View key={i} style={barStyles.col}>
-                {item.count > 0 && (
-                  <Text style={barStyles.valueLabel}>{item.count}</Text>
-                )}
-                <View style={[barStyles.bar, { height: barH }]} />
-              </View>
-            );
-          })}
-        </View>
-      </View>
-      <View style={barStyles.axis} />
-      <View style={barStyles.labelsRow}>
-        {data.map((item, i) => (
-          <Text key={i} style={barStyles.label}>{item.label}</Text>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-const barStyles = StyleSheet.create({
-  barsRow: {
-    alignItems: 'flex-end',
-    bottom: 0,
-    flexDirection: 'row',
-    gap: 6,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  col: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  bar: {
-    backgroundColor: Palette.terracotta,
-    width: '75%',
-  },
-  valueLabel: {
-    color: Palette.inkSecondary,
-    fontSize: 10,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  axis: {
-    backgroundColor: Palette.inkHint,
-    height: 1,
-    marginBottom: 6,
-  },
-  labelsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  label: {
-    color: Palette.inkSecondary,
-    flex: 1,
-    fontSize: 9,
-    textAlign: 'center',
-  },
-});
-
-// ─── donut chart ────────────────────────────────────────────────────────────
-
-function polarToCartesian(cx: number, cy: number, r: number, deg: number) {
-  const rad = ((deg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-
-function DonutChart({ data }: { data: { name: string; color: string; count: number }[] }) {
-  const total = data.reduce((s, d) => s + d.count, 0);
-  if (total === 0) return null;
-
-  const cx = 70, cy = 70, outerR = 60, innerR = 38;
-  let angle = -90;
-
-  const paths = data.map(seg => {
-    const sweep = (seg.count / total) * 360;
-    const gap = data.length > 1 ? 1.5 : 0;
-    const start = polarToCartesian(cx, cy, outerR, angle + gap);
-    const end = polarToCartesian(cx, cy, outerR, angle + sweep - gap);
-    const iStart = polarToCartesian(cx, cy, innerR, angle + sweep - gap);
-    const iEnd = polarToCartesian(cx, cy, innerR, angle + gap);
-    const large = sweep > 180 ? 1 : 0;
-    const d = `M${start.x} ${start.y} A${outerR} ${outerR} 0 ${large} 1 ${end.x} ${end.y} L${iStart.x} ${iStart.y} A${innerR} ${innerR} 0 ${large} 0 ${iEnd.x} ${iEnd.y} Z`;
-    angle += sweep;
-    return { d, color: seg.color };
-  });
-
-  return (
-    <Svg width={140} height={140}>
-      {paths.map((p, i) => <Path key={i} d={p.d} fill={p.color} />)}
-      <Circle cx={cx} cy={cy} r={innerR - 1} fill={Palette.background} />
-    </Svg>
-  );
-}
-
-// ─── upcoming section ────────────────────────────────────────────────────────
-
-function UpcomingSection({ trips }: { trips: Trip[] }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = trips.filter(t => t.endDate >= today).sort((a, b) => a.startDate.localeCompare(b.startDate));
-
-  if (upcoming.length === 0) return null;
-
-  function daysUntil(dateStr: string): string {
-    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return 'Ongoing';
-    if (diff === 0) return 'Starts today';
-    if (diff === 1) return 'Starts tomorrow';
-    return `Starts in ${diff} days`;
-  }
-
-  return (
-    <>
-      <Text style={upcomingStyles.sectionLabel}>Upcoming</Text>
-      {upcoming.map(trip => (
-        <View key={trip.id} style={upcomingStyles.card}>
-          <View style={upcomingStyles.cardLeft}>
-            <Text style={upcomingStyles.tripName}>{trip.name}</Text>
-            <Text style={upcomingStyles.destination}>{trip.destination}</Text>
-            <Text style={upcomingStyles.dates}>{trip.startDate} – {trip.endDate}</Text>
-          </View>
-          <View style={upcomingStyles.cardRight}>
-            <Text style={upcomingStyles.daysUntil}>{daysUntil(trip.startDate)}</Text>
-            {(trip.activityCount ?? 0) > 0 && (
-              <Text style={upcomingStyles.actCount}>{trip.activityCount} planned</Text>
-            )}
-          </View>
-        </View>
-      ))}
-    </>
-  );
-}
-
-const upcomingStyles = StyleSheet.create({
-  sectionLabel: {
-    color: Palette.inkSecondary,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    marginBottom: 10,
-    marginTop: 8,
-    textTransform: 'uppercase',
-  },
-  card: {
-    backgroundColor: Palette.cardBackground,
-    borderColor: Palette.border,
-    borderLeftColor: Palette.terracotta,
-    borderLeftWidth: 2,
-    borderWidth: 0.5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  cardLeft: {
-    flex: 1,
-    gap: 2,
-  },
-  tripName: {
-    color: Palette.ink,
-    fontFamily: 'DMSerifDisplay_400Regular',
-    fontSize: 15,
-  },
-  destination: {
-    color: Palette.inkSecondary,
-    fontSize: 12,
-  },
-  dates: {
-    color: Palette.inkHint,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  cardRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingLeft: 12,
-  },
-  daysUntil: {
-    color: Palette.terracotta,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  actCount: {
-    color: Palette.inkSecondary,
-    fontSize: 11,
-    marginTop: 2,
-  },
-});
-
-// ─── main screen ────────────────────────────────────────────────────────────
 
 type Stats = {
   total: number;
   topCat: Category | null;
   targetsMet: number;
   totalTargets: number;
+  totalSpent: number;
+  tripsInPeriod: number;
 };
+
+function parseCost(val: string | null): number {
+  if (!val) return 0;
+  const n = parseFloat(val.replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
 
 type TripRow = {
   name: string;
@@ -342,8 +107,10 @@ export default function InsightsScreen() {
 
   const [period, setPeriod] = useState<Period>('weekly');
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Stats>({ total: 0, topCat: null, targetsMet: 0, totalTargets: 0 });
-  const [barData, setBarData] = useState<{ label: string; count: number }[]>([]);
+  const [stats, setStats] = useState<Stats>({ total: 0, topCat: null, targetsMet: 0, totalTargets: 0, totalSpent: 0, tripsInPeriod: 0 });
+  const [allActs, setAllActs] = useState<Activity[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
+  const [streak, setStreak] = useState<StreakResult | null>(null);
   const [catData, setCatData] = useState<{ name: string; color: string; count: number }[]>([]);
   const [tripRows, setTripRows] = useState<TripRow[]>([]);
   const [hasAnyActivities, setHasAnyActivities] = useState(false);
@@ -356,11 +123,11 @@ export default function InsightsScreen() {
     setLoading(true);
 
     const tripIds = trips.map(t => t.id);
+    const { start, end } = getDateRange(period);
     let periodActivities: Activity[] = [];
     let allActivities: Activity[] = [];
 
     if (tripIds.length > 0) {
-      const { start, end } = getDateRange(period);
       periodActivities = await db.select().from(activitiesTable).where(
         and(inArray(activitiesTable.tripId, tripIds), gte(activitiesTable.date, start), lte(activitiesTable.date, end))
       );
@@ -378,9 +145,12 @@ export default function InsightsScreen() {
     const topCatId = Number(Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0]);
     const topCat = topCatId ? (categories.find(c => c.id === topCatId) ?? null) : null;
     const targetsMet = targets.filter(t => computeProgress(t as Target, allActivities) >= t.targetValue).length;
+    const totalSpent = periodActivities.reduce((sum, a) => sum + parseCost(a.cost), 0);
+    const tripsInPeriod = trips.filter(t => t.startDate <= end && t.endDate >= start).length;
 
-    setStats({ total: periodActivities.length, topCat, targetsMet, totalTargets: targets.length });
-    setBarData(groupActivities(periodActivities, period));
+    setStats({ total: periodActivities.length, topCat, targetsMet, totalTargets: targets.length, totalSpent, tripsInPeriod });
+    setAllActs(allActivities);
+    if (selectedTripId === null && trips.length > 0) setSelectedTripId(trips[0].id);
     setCatData(
       categories.map(c => ({ name: c.name, color: c.color, count: catCounts[c.id] ?? 0 })).filter(c => c.count > 0)
     );
@@ -394,6 +164,7 @@ export default function InsightsScreen() {
       }).filter(r => r.count > 0)
     );
     setHasAnyActivities(allActivities.length > 0);
+    setStreak(await calculateStreak(authContext.user.id, trips));
     setLoading(false);
   }, [authContext, period, trips, categories]);
 
@@ -404,16 +175,24 @@ export default function InsightsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScreenHeader title="Insights" centered />
 
+      {streak !== null && (
+        <View style={styles.streakNote}>
+          {streak.count > 0 && (
+            <Text style={styles.streakCount}>{streak.count} trip streak</Text>
+          )}
+          <Text style={styles.streakMessage}>{streak.message}</Text>
+        </View>
+      )}
+
       <View style={styles.toggleRow}>
         {(['daily', 'weekly', 'monthly'] as Period[]).map(p => (
-          <Pressable key={p} style={[styles.toggleBtn, period === p && styles.toggleBtnActive]} onPress={() => setPeriod(p)}>
+          <Pressable key={p} style={[styles.toggleBtn, period === p && styles.toggleBtnActive]} onPress={() => setPeriod(p)} accessibilityLabel={`View ${PERIOD_LABELS[p]}`} accessibilityRole="button">
             <Text style={[styles.toggleText, period === p && styles.toggleTextActive]}>
               {PERIOD_LABELS[p]}
             </Text>
           </Pressable>
         ))}
       </View>
-      <Text style={styles.periodRange}>{periodLabel(period)}</Text>
 
       {loading ? (
         <View style={styles.center}>
@@ -424,7 +203,6 @@ export default function InsightsScreen() {
           <View style={styles.emptyBox}>
             <Text style={styles.emptyText}>Start logging activities to see your journey take shape.</Text>
           </View>
-          <UpcomingSection trips={trips} />
         </ScrollView>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -446,57 +224,101 @@ export default function InsightsScreen() {
               <Text style={styles.statHint}>all active targets</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{tripRows.length}</Text>
-              <Text style={styles.statLabel}>Trips with activity</Text>
+              <Text style={styles.statValue}>{stats.tripsInPeriod}</Text>
+              <Text style={styles.statLabel}>Trips</Text>
+              <Text style={styles.statHint}>{periodLabel(period)}</Text>
+            </View>
+            <View style={[styles.statBox, { flexBasis: '100%' }]}>
+              <Text style={styles.statValue}>€{stats.totalSpent.toFixed(2)}</Text>
+              <Text style={styles.statLabel}>Total spent on activities</Text>
               <Text style={styles.statHint}>{periodLabel(period)}</Text>
             </View>
           </View>
 
-          <Text style={styles.sectionLabel}>Activity Over Time</Text>
-          <View style={styles.chartCard}>
-            <BarChart data={barData} />
-          </View>
-
-          {catData.length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>By Category</Text>
-              <View style={styles.chartCard}>
-                <View style={styles.donutRow}>
-                  <DonutChart data={catData} />
-                  <View style={styles.legend}>
-                    {catData.map((c, i) => (
-                      <View key={i} style={styles.legendItem}>
-                        <View style={[styles.legendDot, { backgroundColor: c.color }]} />
-                        <Text style={styles.legendLabel}>{c.name}</Text>
-                        <Text style={styles.legendCount}>{c.count}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
+          <Text style={styles.sectionLabel}>Activity by Trip</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {trips.map(tr => (
+                <Pressable key={tr.id} onPress={() => setSelectedTripId(tr.id)}
+                  accessibilityLabel={`View activity chart for ${tr.name}`} accessibilityRole="button"
+                  style={[styles.tripPill, selectedTripId === tr.id && styles.tripPillActive]}>
+                  <Text style={[styles.tripPillText, selectedTripId === tr.id && styles.tripPillTextActive]}>{tr.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+          {selectedTripId !== null && (() => {
+            const trip = trips.find(t => t.id === selectedTripId);
+            if (!trip) return null;
+            const days = buildTripDays(selectedTripId, trip, allActs, categories);
+            const usedCats = categories.filter(cat => days.some(d => d.segments.some(s => s.color === cat.color)));
+            return (
+              <View style={[styles.chartCard, { marginBottom: 24 }]}>
+                <StackedTripChart days={days} categories={usedCats} />
               </View>
-            </>
-          )}
+            );
+          })()}
 
-          {tripRows.length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Per Trip</Text>
-              {tripRows.map((row, i) => (
-                <View key={i} style={styles.tripRow}>
-                  <View style={styles.tripRowLeft}>
-                    <Text style={styles.tripName}>{row.name}</Text>
-                    <View style={styles.tripDots}>
-                      {row.catColors.map((color, j) => (
-                        <View key={j} style={[styles.tripDot, { backgroundColor: color }]} />
-                      ))}
+          {(() => {
+            const yearTrips = trips.filter(t => t.startDate <= '2026-12-31' && t.endDate >= '2026-01-01');
+            if (yearTrips.length === 0) return null;
+            const yearTripIds = new Set(yearTrips.map(t => t.id));
+            const yearActs = allActs.filter(a => yearTripIds.has(a.tripId));
+            const nightsAway = yearTrips.reduce((sum, t) => sum + Math.round((new Date(t.endDate).getTime() - new Date(t.startDate).getTime()) / 86400000), 0);
+            const countriesVisited = new Set(yearTrips.map(t => t.country).filter(Boolean)).size;
+            const totalSpendYear = yearActs.reduce((sum, a) => sum + parseCost(a.cost), 0);
+            const avgSpend = totalSpendYear / yearTrips.length;
+            const catCounts: Record<number, number> = {};
+            for (const a of yearActs) {
+              if (a.categoryId !== null) catCounts[a.categoryId] = (catCounts[a.categoryId] ?? 0) + 1;
+            }
+            const topCatId = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+            const topCatName = topCatId ? categories.find(c => c.id === Number(topCatId))?.name : null;
+            const rows: { label: string; value: string }[] = [
+              { label: 'Trips taken', value: String(yearTrips.length) },
+              ...(countriesVisited > 0 ? [{ label: 'Countries visited', value: String(countriesVisited) }] : []),
+              { label: 'Nights away', value: String(nightsAway) },
+              ...(avgSpend > 0 ? [{ label: 'Avg. spend per trip', value: `€${avgSpend.toFixed(0)}` }] : []),
+              ...(topCatName ? [{ label: 'Type of traveller', value: `${topCatName} enthusiast` }] : []),
+            ];
+            const spendData = yearTrips
+              .map((t, i) => ({
+                name: t.name,
+                color: TRIP_COLORS[i % TRIP_COLORS.length],
+                count: yearActs.filter(a => a.tripId === t.id).reduce((s, a) => s + parseCost(a.cost), 0),
+              }))
+              .filter(d => d.count > 0);
+            return (
+              <>
+                <Text style={styles.yearTitle}>Your 2026 in Travel</Text>
+                <View style={styles.yearCard}>
+                  {rows.map((row, i) => (
+                    <View key={row.label} style={[styles.yearRow, i === rows.length - 1 && styles.yearRowLast]}>
+                      <Text style={styles.yearLabel}>{row.label}</Text>
+                      <Text style={styles.yearValue}>{row.value}</Text>
+                    </View>
+                  ))}
+                </View>
+                {spendData.length > 0 && (
+                  <View style={[styles.chartCard, { marginBottom: 24 }]}>
+                    <Text style={styles.sectionLabel}>Spending by Trip</Text>
+                    <View style={styles.donutRow}>
+                      <DonutChart data={spendData} />
+                      <View style={styles.legend}>
+                        {spendData.map(d => (
+                          <View key={d.name} style={styles.legendItem}>
+                            <View style={[styles.legendDot, { backgroundColor: d.color }]} />
+                            <Text style={styles.legendLabel} numberOfLines={1}>{d.name}</Text>
+                            <Text style={styles.legendCount}>€{d.count.toFixed(0)}</Text>
+                          </View>
+                        ))}
+                      </View>
                     </View>
                   </View>
-                  <Text style={styles.tripCount}>{row.count} {row.count === 1 ? 'activity' : 'activities'}</Text>
-                </View>
-              ))}
-            </>
-          )}
-
-          <UpcomingSection trips={trips} />
+                )}
+              </>
+            );
+          })()}
 
         </ScrollView>
       )}
@@ -516,7 +338,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   periodRange: {
-    color: Palette.inkHint,
+    color: Palette.inkSecondary,
     fontSize: 11,
     marginBottom: 20,
     textAlign: 'center',
@@ -554,7 +376,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: Palette.inkSecondary,
-    fontFamily: 'DMSerifDisplay_400Regular',
+
     fontStyle: 'italic',
     fontSize: 16,
     lineHeight: 24,
@@ -570,7 +392,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   statBox: {
-    backgroundColor: Palette.cardBackground,
+    backgroundColor: '#E8F8F7',
     borderColor: Palette.border,
     borderWidth: 0.5,
     flexBasis: '47%',
@@ -578,9 +400,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
+  statIcon: {
+    marginBottom: 6,
+  },
   statValue: {
     color: Palette.ink,
-    fontFamily: 'DMSerifDisplay_400Regular',
+
     fontSize: 22,
     marginBottom: 2,
   },
@@ -588,11 +413,9 @@ const styles = StyleSheet.create({
     color: Palette.inkSecondary,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.0,
-    textTransform: 'uppercase',
   },
   statHint: {
-    color: Palette.inkHint,
+    color: Palette.inkSecondary,
     fontSize: 10,
     marginTop: 2,
   },
@@ -600,9 +423,7 @@ const styles = StyleSheet.create({
     color: Palette.inkSecondary,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.4,
     marginBottom: 10,
-    textTransform: 'uppercase',
   },
   chartCard: {
     backgroundColor: Palette.cardBackground,
@@ -627,7 +448,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   legendDot: {
-    borderRadius: 4,
     height: 8,
     width: 8,
   },
@@ -657,7 +477,7 @@ const styles = StyleSheet.create({
   },
   tripName: {
     color: Palette.ink,
-    fontFamily: 'DMSerifDisplay_400Regular',
+
     fontSize: 14,
   },
   tripDots: {
@@ -665,12 +485,86 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tripDot: {
-    borderRadius: 4,
     height: 7,
     width: 7,
   },
   tripCount: {
     color: Palette.inkSecondary,
     fontSize: 12,
+  },
+  streakNote: {
+    backgroundColor: Palette.cardBackground,
+    borderColor: Palette.border,
+    borderWidth: 1.5,
+    marginBottom: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  streakCount: {
+    color: Palette.terracotta,
+
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  streakMessage: {
+    color: Palette.inkSecondary,
+    fontSize: 13,
+  },
+  chartNote: {
+    color: Palette.inkHint,
+    fontSize: 10,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  tripPill: {
+    borderColor: Palette.border,
+    borderWidth: 0.5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  tripPillActive: {
+    backgroundColor: Palette.terracotta,
+    borderColor: Palette.terracotta,
+  },
+  tripPillText: {
+    color: Palette.inkSecondary,
+    fontSize: 12,
+  },
+  tripPillTextActive: {
+    color: Palette.white,
+    fontWeight: '600',
+  },
+  yearTitle: {
+    color: Palette.ink,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  yearCard: {
+    backgroundColor: Palette.cardBackground,
+    borderColor: Palette.border,
+    borderWidth: 1.5,
+    marginBottom: 24,
+  },
+  yearRow: {
+    alignItems: 'center',
+    borderBottomColor: Palette.border,
+    borderBottomWidth: 1.5,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  yearRowLast: {
+    borderBottomWidth: 0,
+  },
+  yearLabel: {
+    color: Palette.inkSecondary,
+    fontSize: 13,
+  },
+  yearValue: {
+    color: Palette.ink,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

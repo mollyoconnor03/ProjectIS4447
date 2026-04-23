@@ -1,22 +1,6 @@
+import TabIcon from '@/components/ui/tab-icon';
 import { Palette } from '@/constants/theme';
-import Feather from '@expo/vector-icons/Feather';
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
-
-function TabIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Feather name={name as any} size={20} color={color} />
-      <View style={{
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: focused ? Palette.terracotta : 'transparent',
-        marginTop: 4,
-      }} />
-    </View>
-  );
-}
 
 export default function TabLayout() {
   return (
@@ -33,12 +17,10 @@ export default function TabLayout() {
           paddingBottom: 8,
         },
         tabBarActiveTintColor: Palette.ink,
-        tabBarInactiveTintColor: Palette.inkHint,
+        tabBarInactiveTintColor: Palette.inkSecondary,
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: '500',
-          letterSpacing: 0.6,
-          textTransform: 'uppercase',
         },
       }}
     >

@@ -59,7 +59,7 @@ export default function Register() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.eyebrow}>
-          <Text style={styles.eyebrowText}>YOUR TRAVEL JOURNAL</Text>
+          <Text style={styles.eyebrowText}>Your travel journal</Text>
         </View>
 
         <ScreenHeader title="A New Adventure Begins" subtitle="Create your travel journal." />
@@ -72,7 +72,7 @@ export default function Register() {
 
         <PrimaryButton label={loading ? 'Creating journal…' : 'Create Journal'} onPress={register} />
 
-        <Pressable onPress={() => router.replace('/(auth)/login')} style={styles.linkRow}>
+        <Pressable onPress={() => router.replace('/(auth)/login')} style={styles.linkRow} accessibilityLabel="Sign in to existing account" accessibilityRole="button">
           <Text style={styles.link}>Already have a journal? </Text>
           <Text style={[styles.link, styles.linkAccent]}>Sign in.</Text>
         </Pressable>
@@ -99,7 +99,6 @@ const styles = StyleSheet.create({
     color: Palette.inkHint,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 2,
   },
   form: {
     marginBottom: 8,

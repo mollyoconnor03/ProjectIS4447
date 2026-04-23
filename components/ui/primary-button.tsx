@@ -16,6 +16,8 @@ export default function PrimaryButton({ label, onPress, compact = false, variant
   return (
     <Pressable
       onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityRole="button"
       android_ripple={{ color: 'transparent' }}
       style={({ pressed }) => [
         styles.base,
@@ -42,7 +44,6 @@ export default function PrimaryButton({ label, onPress, compact = false, variant
 const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
-    borderRadius: 0,
     paddingHorizontal: 20,
     paddingVertical: 13,
   },
@@ -66,10 +67,8 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   baseLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
   },
   primaryLabel: {
     color: Palette.white,
@@ -81,7 +80,6 @@ const styles = StyleSheet.create({
     color: Palette.white,
   },
   compactLabel: {
-    fontSize: 10,
-    letterSpacing: 1.1,
+    fontSize: 12,
   },
 });

@@ -1,10 +1,6 @@
-import {
-  DMSerifDisplay_400Regular,
-  DMSerifDisplay_400Regular_Italic,
-  useFonts,
-} from '@expo-google-fonts/dm-serif-display';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { activitiesTable, categoriesTable, tripsTable, usersTable } from '@/db/schema';
+import { seedIfEmpty } from '@/db/seed';
 import { Palette } from '@/constants/theme';
 import { count, eq } from 'drizzle-orm';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -31,6 +27,9 @@ export type Trip = {
   accommodationName: string | null;
   accommodationCost: string | null;
   activityCount?: number;
+  latitude: number | null;
+  longitude: number | null;
+  country: string | null;
 };
 
 type TripContextType = {
@@ -60,10 +59,11 @@ export const CategoryContext = createContext<CategoryContextType | null>(null);
 export type Target = {
   id: number;
   userId: number | null;
+  type: 'activity' | 'trips_count' | 'spending';
+  label: string;
   tripId: number | null;
   categoryId: number | null;
-  label: string;
-  period: 'weekly' | 'monthly';
+  period: string | null;
   targetValue: number;
 };
 
@@ -77,6 +77,27 @@ export type Activity = {
   location: string | null;
   cost: string | null;
   participants: string | null;
+  notes: string | null;
+  durationMins: number | null;
+};
+
+export type Transport = {
+  id: number;
+  tripId: number;
+  type: string;
+  description: string;
+  date: string;
+  cost: string | null;
+  notes: string | null;
+};
+
+export type Accommodation = {
+  id: number;
+  tripId: number;
+  name: string;
+  checkIn: string;
+  checkOut: string;
+  cost: string | null;
   notes: string | null;
 };
 
@@ -100,11 +121,6 @@ export default function RootLayout() {
   const [authLoaded, setAuthLoaded] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loaded, fontError] = useFonts({
-    DMSerifDisplay_400Regular,
-    DMSerifDisplay_400Regular_Italic,
-  });
-
   const refreshTrips = useCallback(async (userId: number) => {
     const rows = await db.select().from(tripsTable).where(eq(tripsTable.userId, userId));
     if (rows.length === 0) {
@@ -126,13 +142,12 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if ((loaded || fontError) && authLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded, fontError, authLoaded]);
+    if (authLoaded) SplashScreen.hideAsync();
+  }, [authLoaded]);
 
   useEffect(() => {
     const checkSession = async () => {
+      await seedIfEmpty();
       const stored = await AsyncStorage.getItem('CURRENT_USER_ID');
       if (stored) {
         const rows = await db.select().from(usersTable).where(eq(usersTable.id, Number(stored)));
@@ -157,7 +172,7 @@ export default function RootLayout() {
 
   useProtectedRoute(user, authLoaded);
 
-  if (!loaded && !fontError) return null;
+  if (!authLoaded) return null;
 
   return (
     <AuthContext.Provider value={{ user, setUser }}>
@@ -168,17 +183,16 @@ export default function RootLayout() {
               headerStyle: { backgroundColor: Palette.background },
               headerShadowVisible: false,
               headerTitleStyle: {
-                fontFamily: 'DMSerifDisplay_400Regular',
                 fontSize: 18,
                 color: Palette.ink,
               },
-              headerTintColor: Palette.navy,
+              headerTintColor: Palette.terracotta,
               headerBackTitle: '',
               contentStyle: { backgroundColor: Palette.background },
             }}
           >
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
           </Stack>
         </CategoryContext.Provider>
       </TripContext.Provider>

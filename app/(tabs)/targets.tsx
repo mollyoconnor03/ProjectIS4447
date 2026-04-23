@@ -12,36 +12,53 @@ import { useCallback, useContext, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function getPeriodRange(period: 'weekly' | 'monthly') {
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getPeriodRange(period: string): { start: string; end: string } {
   const now = new Date();
-  if (period === 'weekly') {
-    const day = now.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const start = new Date(now);
-    start.setDate(now.getDate() + diff);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  if (period === 'monthly') {
+    return {
+      start: toLocalDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+      end: toLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    };
   }
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  if (period === 'quarterly') {
+    const q = Math.floor(now.getMonth() / 3);
+    return {
+      start: toLocalDate(new Date(now.getFullYear(), q * 3, 1)),
+      end: toLocalDate(new Date(now.getFullYear(), (q + 1) * 3, 0)),
+    };
+  }
+  return { start: '', end: '' };
 }
 
-function periodEndsSoon(period: 'weekly' | 'monthly'): boolean {
-  const { end } = getPeriodRange(period);
-  const diff = (new Date(end).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-  return diff <= 2;
+function parseCost(val: string | null): number {
+  if (!val) return 0;
+  const n = parseFloat(val.replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? 0 : n;
 }
 
-function computeProgress(target: Target, activities: Activity[]): number {
-  const { start, end } = getPeriodRange(target.period);
-  return activities.filter(a => {
-    if (a.date < start || a.date > end) return false;
-    if (target.categoryId !== null && a.categoryId !== target.categoryId) return false;
-    if (target.tripId !== null && a.tripId !== target.tripId) return false;
-    return true;
-  }).length;
+function computeProgress(target: Target, activities: Activity[], trips: any[]): number {
+  if (target.type === 'activity') {
+    return activities.filter(a => {
+      if (a.tripId !== target.tripId) return false;
+      if (target.categoryId !== null && a.categoryId !== target.categoryId) return false;
+      return true;
+    }).length;
+  }
+  if (target.type === 'trips_count' && target.period) {
+    const { start, end } = getPeriodRange(target.period);
+    return trips.filter(t => t.startDate <= end && t.endDate >= start).length;
+  }
+  if (target.type === 'spending' && target.period) {
+    const { start, end } = getPeriodRange(target.period);
+    return activities
+      .filter(a => a.date >= start && a.date <= end)
+      .reduce((sum, a) => sum + parseCost(a.cost), 0);
+  }
+  return 0;
 }
 
 export default function TargetsScreen() {
@@ -53,29 +70,56 @@ export default function TargetsScreen() {
   const [targets, setTargets] = useState<Target[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
 
+  const trips = tripContext?.trips ?? [];
+  const categories = catContext?.categories ?? [];
+
   const loadData = useCallback(async () => {
     if (!authContext?.user) return;
     const t = await db.select().from(targetsTable).where(eq(targetsTable.userId, authContext.user.id));
     setTargets(t as Target[]);
-
-    const tripIds = (tripContext?.trips ?? []).map(tr => tr.id);
+    const tripIds = trips.map(tr => tr.id);
     if (tripIds.length > 0) {
-      const a = await db.select().from(activitiesTable).where(inArray(activitiesTable.tripId, tripIds));
-      setActivities(a);
+      setActivities(await db.select().from(activitiesTable).where(inArray(activitiesTable.tripId, tripIds)));
     } else {
       setActivities([]);
     }
-  }, [authContext, tripContext?.trips]);
+  }, [authContext, trips]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  const categories = catContext?.categories ?? [];
-  const trips = tripContext?.trips ?? [];
-
-  const handleDelete = async (targetId: number) => {
-    await db.delete(targetsTable).where(eq(targetsTable.id, targetId));
+  const handleDelete = async (id: number) => {
+    await db.delete(targetsTable).where(eq(targetsTable.id, id));
     await loadData();
   };
+
+  function isMet(t: Target): boolean {
+    const progress = computeProgress(t, activities, trips);
+    const today = toLocalDate(new Date());
+    if (t.type !== 'activity' && t.period) {
+      const { end } = getPeriodRange(t.period);
+      if (today <= end) return false; // period still ongoing — never completed yet
+    }
+    return t.type === 'spending' ? progress <= t.targetValue : progress >= t.targetValue;
+  }
+
+  function renderCard(t: Target) {
+    const cat = categories.find(c => c.id === t.categoryId);
+    const trip = trips.find(tr => tr.id === t.tripId);
+    return (
+      <TargetCard
+        key={t.id}
+        target={t}
+        progress={computeProgress(t, activities, trips)}
+        tripName={trip?.name ?? null}
+        categoryName={cat?.name ?? null}
+        onEdit={() => router.push({ pathname: '/target/[id]/edit', params: { id: t.id.toString() } })}
+        onDelete={() => handleDelete(t.id)}
+      />
+    );
+  }
+
+  const activeTargets = targets.filter(t => !isMet(t));
+  const completedTargets = targets.filter(t => isMet(t));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -86,26 +130,25 @@ export default function TargetsScreen() {
       {targets.length === 0 ? (
         <View style={styles.emptyState}>
           <Feather name="crosshair" size={36} color={Palette.inkHint} />
-          <Text style={styles.emptyText}>No targets set. Challenge yourself.</Text>
+          <Text style={styles.emptyText}>No targets yet. Set a goal for your next trip.</Text>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
-          {targets.map(t => {
-            const cat = categories.find(c => c.id === t.categoryId);
-            const trip = trips.find(tr => tr.id === t.tripId);
-            return (
-              <TargetCard
-                key={t.id}
-                target={t}
-                progress={computeProgress(t, activities)}
-                categoryName={cat?.name ?? null}
-                tripName={trip?.name ?? null}
-                periodEndsSoon={periodEndsSoon(t.period) && computeProgress(t, activities) < t.targetValue}
-                onEdit={() => router.push({ pathname: '/target/[id]/edit', params: { id: t.id.toString() } })}
-                onDelete={() => handleDelete(t.id)}
-              />
-            );
-          })}
+
+          {activeTargets.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Active</Text>
+              {activeTargets.map(renderCard)}
+            </>
+          )}
+
+          {completedTargets.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Completed</Text>
+              {completedTargets.map(renderCard)}
+            </>
+          )}
+
         </ScrollView>
       )}
     </SafeAreaView>
@@ -123,6 +166,13 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingTop: 14,
   },
+  sectionLabel: {
+    color: Palette.ink,
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 10,
+    marginTop: 8,
+  },
   emptyState: {
     alignItems: 'center',
     flex: 1,
@@ -132,7 +182,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: Palette.inkSecondary,
-    fontFamily: 'DMSerifDisplay_400Regular',
+
     fontStyle: 'italic',
     fontSize: 16,
     lineHeight: 24,

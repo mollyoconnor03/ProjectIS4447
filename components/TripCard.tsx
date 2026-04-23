@@ -2,12 +2,21 @@ import { Trip } from '@/app/_layout';
 import InfoTag from '@/components/ui/info-tag';
 import PrimaryButton from '@/components/ui/primary-button';
 import { Palette } from '@/constants/theme';
+import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   trip: Trip;
 };
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDate();
+  const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
+  const month = d.toLocaleDateString('en', { month: 'long' });
+  return `${day}${suffix} ${month}`;
+}
 
 export default function TripCard({ trip }: Props) {
   const router = useRouter();
@@ -16,13 +25,16 @@ export default function TripCard({ trip }: Props) {
 
   return (
     <View style={styles.card}>
-      <Pressable onPress={openDetails}>
+      <Pressable onPress={openDetails} accessibilityLabel={`View trip: ${trip.name}`} accessibilityRole="button">
         <Text style={styles.name}>{trip.name}</Text>
       </Pressable>
-      <Text style={styles.destination}>{trip.destination}</Text>
+      <View style={styles.destinationRow}>
+        <Feather name="map-pin" size={11} color={Palette.inkHint} />
+        <Text style={styles.destination}>{trip.destination}</Text>
+      </View>
       <View style={styles.tags}>
-        <InfoTag label="From" value={trip.startDate} />
-        <InfoTag label="To" value={trip.endDate} />
+        <InfoTag label="From" value={formatDate(trip.startDate)} />
+        <InfoTag label="To" value={formatDate(trip.endDate)} />
         <InfoTag label="Activities" value={String(trip.activityCount ?? 0)} />
       </View>
       <PrimaryButton compact label="View Trip" onPress={openDetails} />
@@ -32,25 +44,35 @@ export default function TripCard({ trip }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Palette.cardBackground,
+    backgroundColor: '#E8F8F7',
     borderColor: Palette.border,
-    borderWidth: 0.5,
-    marginBottom: 12,
-    paddingBottom: 14,
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    borderWidth: 1,
+    elevation: 2,
+    marginBottom: 14,
+    paddingBottom: 16,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 4,
   },
   name: {
     color: Palette.ink,
-    fontFamily: 'DMSerifDisplay_400Regular',
-    fontSize: 18,
-    lineHeight: 24,
-    marginBottom: 2,
+
+    fontSize: 20,
+    lineHeight: 26,
+    marginBottom: 3,
+  },
+  destinationRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 10,
   },
   destination: {
     color: Palette.inkSecondary,
-    fontSize: 12,
-    marginBottom: 10,
+    fontSize: 13,
   },
   tags: {
     flexDirection: 'row',

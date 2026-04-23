@@ -17,22 +17,18 @@ export default function InfoTag({ label, value }: Props) {
 
 const styles = StyleSheet.create({
   tag: {
-    borderColor: Palette.border,
-    borderRadius: 0,
-    borderWidth: 0.5,
+    backgroundColor: '#F0EDE8',
     flexDirection: 'row',
     marginBottom: 6,
     marginRight: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   label: {
     color: Palette.inkSecondary,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 0.8,
     marginRight: 5,
-    textTransform: 'uppercase',
   },
   value: {
     color: Palette.ink,

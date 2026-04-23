@@ -7,7 +7,7 @@ import { activitiesTable, targetsTable, tripsTable, usersTable } from '@/db/sche
 import { eq, inArray } from 'drizzle-orm';
 import { useRouter } from 'expo-router';
 import { useContext } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Image, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext, TripContext } from '../_layout';
 
@@ -58,7 +58,10 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title={user.name} subtitle={user.email} />
+      <View style={styles.logoWrap}>
+        <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
+      </View>
+      <ScreenHeader title={user.name} subtitle={user.email} centered />
       <PrimaryButton label="Sign Out" variant="secondary" onPress={signOut} />
       <View style={styles.gap}>
         <PrimaryButton label="Delete Account" variant="danger" onPress={confirmDelete} />
@@ -74,6 +77,14 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  logoWrap: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  logo: {
+    height: 130,
+    width: 240,
   },
   gap: {
     marginTop: 10,

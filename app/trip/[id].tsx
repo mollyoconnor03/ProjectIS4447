@@ -1,17 +1,21 @@
 import ActivityCard from '@/components/ActivityCard';
+import WeatherWidget from '@/components/WeatherWidget';
 import InfoTag from '@/components/ui/info-tag';
 import PrimaryButton from '@/components/ui/primary-button';
 import ScreenHeader from '@/components/ui/screen-header';
 import { Palette } from '@/constants/theme';
 import { db } from '@/db/client';
-import { activitiesTable, tripsTable } from '@/db/schema';
+import { accommodationsTable, activitiesTable, transportTable, tripsTable } from '@/db/schema';
+import { buildTripCsv } from '@/utils/exportCsv';
 import { eq } from 'drizzle-orm';
 import Feather from '@expo/vector-icons/Feather';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useCallback, useContext, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Activity, AuthContext, CategoryContext, Trip, TripContext } from '../_layout';
+import { Accommodation, Activity, AuthContext, CategoryContext, Transport, Trip, TripContext } from '../_layout';
 
 export default function TripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,23 +25,31 @@ export default function TripDetail() {
   const catContext = useContext(CategoryContext);
 
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [transport, setTransport] = useState<Transport[]>([]);
+  const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [filterCategoryId, setFilterCategoryId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   if (!context) return null;
 
   const { trips, refreshTrips } = context;
   const trip = trips.find((t: Trip) => t.id === Number(id));
 
-  const loadActivities = useCallback(async () => {
-    const rows = await db
-      .select()
-      .from(activitiesTable)
-      .where(eq(activitiesTable.tripId, Number(id)));
-    rows.sort((a, b) => a.date.localeCompare(b.date));
-    setActivities(rows);
+  const loadData = useCallback(async () => {
+    const [acts, trans, accoms] = await Promise.all([
+      db.select().from(activitiesTable).where(eq(activitiesTable.tripId, Number(id))),
+      db.select().from(transportTable).where(eq(transportTable.tripId, Number(id))),
+      db.select().from(accommodationsTable).where(eq(accommodationsTable.tripId, Number(id))),
+    ]);
+    acts.sort((a, b) => a.date.localeCompare(b.date));
+    trans.sort((a, b) => a.date.localeCompare(b.date));
+    accoms.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+    setActivities(acts);
+    setTransport(trans);
+    setAccommodations(accoms);
   }, [id]);
 
-  useFocusEffect(useCallback(() => { loadActivities(); }, [loadActivities]));
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   if (!trip) return null;
 
@@ -49,18 +61,59 @@ export default function TripDetail() {
     return isNaN(n) ? 0 : n;
   };
 
-  const totalCost = parseCost(trip.accommodationCost) + activities.reduce((sum, a) => sum + parseCost(a.cost), 0);
+  const totalCost =
+    activities.reduce((sum, a) => sum + parseCost(a.cost), 0) +
+    transport.reduce((sum, t) => sum + parseCost(t.cost), 0) +
+    accommodations.reduce((sum, a) => sum + parseCost(a.cost), 0);
 
   const handleDeleteActivity = async (activityId: number) => {
     await db.delete(activitiesTable).where(eq(activitiesTable.id, activityId));
-    await loadActivities();
+    await loadData();
     if (authContext?.user) await refreshTrips(authContext.user.id);
   };
 
+  const confirmDeleteTransport = (tId: number) =>
+    Alert.alert('Remove Transport', 'Remove this transport entry?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        await db.delete(transportTable).where(eq(transportTable.id, tId));
+        await loadData();
+      }},
+    ]);
+
+  const confirmDeleteAccommodation = (aId: number) =>
+    Alert.alert('Remove Accommodation', 'Remove this accommodation?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        await db.delete(accommodationsTable).where(eq(accommodationsTable.id, aId));
+        await loadData();
+      }},
+    ]);
+
   const deleteTrip = async () => {
+    await Promise.all([
+      db.delete(activitiesTable).where(eq(activitiesTable.tripId, Number(id))),
+      db.delete(transportTable).where(eq(transportTable.tripId, Number(id))),
+      db.delete(accommodationsTable).where(eq(accommodationsTable.tripId, Number(id))),
+    ]);
     await db.delete(tripsTable).where(eq(tripsTable.id, Number(id)));
     if (authContext?.user) await refreshTrips(authContext.user.id);
     router.back();
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const csv = buildTripCsv(trip, activities, categories);
+      const safeName = trip.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const fileUri = FileSystem.cacheDirectory + `aistear-${safeName}.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: `Export ${trip.name}` });
+    } catch {
+      Alert.alert('Export failed', 'Something went wrong while generating the export.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const confirmDeleteTrip = () => {
@@ -76,9 +129,27 @@ export default function TripDetail() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ title: '' }} />
+      <Stack.Screen options={{
+        title: '',
+        headerRight: () => (
+          <Pressable onPress={handleExport} disabled={exporting} accessibilityLabel="Export trip as CSV" accessibilityRole="button" style={{ marginRight: 8 }}>
+            <Feather name="download" size={20} color={Palette.inkSecondary} />
+          </Pressable>
+        ),
+      }} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <ScreenHeader title={trip.name} subtitle={trip.destination} />
+
+        <View style={styles.actionRow}>
+          <View style={styles.actionBtn}>
+            <PrimaryButton compact label="Edit Trip" variant="secondary" onPress={() => router.push({ pathname: '../trip/[id]/edit', params: { id } })} />
+          </View>
+          <View style={styles.actionBtn}>
+            <PrimaryButton compact label="Delete Trip" variant="danger" onPress={confirmDeleteTrip} />
+          </View>
+        </View>
+
+        <WeatherWidget trip={trip} />
 
         <View style={styles.tagsRow}>
           <InfoTag label="From" value={trip.startDate} />
@@ -87,30 +158,39 @@ export default function TripDetail() {
         </View>
 
         <View style={styles.metaCard}>
-          <Text style={styles.metaCardTitle}>Accommodation</Text>
-          {trip.accommodationName ? (
-            <View style={styles.accommodationRow}>
-              <View>
-                <Text style={styles.accommodationName}>{trip.accommodationName}</Text>
-                {trip.accommodationCost ? (
-                  <Text style={styles.accommodationCost}>{trip.accommodationCost}</Text>
-                ) : null}
+          <Text style={styles.metaCardTitle}>Transport</Text>
+          {transport.map(t => (
+            <View key={t.id} style={styles.logItem}>
+              <View style={styles.logItemLeft}>
+                <Text style={styles.logItemTitle}>{t.type.charAt(0).toUpperCase() + t.type.slice(1)}: {t.description}</Text>
+                <Text style={styles.logItemSub}>{t.date}{t.cost ? ` · ${t.cost}` : ''}</Text>
+                {t.notes ? <Text style={styles.logItemNote}>{t.notes}</Text> : null}
               </View>
-              <PrimaryButton
-                compact
-                label="Edit"
-                variant="secondary"
-                onPress={() => router.push({ pathname: '/trip/[id]/accommodation', params: { id } })}
-              />
+              <Pressable onPress={() => confirmDeleteTransport(t.id)} accessibilityLabel="Delete transport entry" accessibilityRole="button">
+                <Feather name="trash-2" size={15} color={Palette.danger} />
+              </Pressable>
             </View>
-          ) : (
-            <PrimaryButton
-              compact
-              label="+ Add Accommodation"
-              variant="secondary"
-              onPress={() => router.push({ pathname: '/trip/[id]/accommodation', params: { id } })}
-            />
-          )}
+          ))}
+          <PrimaryButton compact label="+ Add Transport" variant="secondary"
+            onPress={() => router.push({ pathname: '/trip/[id]/add-transport', params: { id } })} />
+        </View>
+
+        <View style={styles.metaCard}>
+          <Text style={styles.metaCardTitle}>Accommodation</Text>
+          {accommodations.map(a => (
+            <View key={a.id} style={styles.logItem}>
+              <View style={styles.logItemLeft}>
+                <Text style={styles.logItemTitle}>{a.name}</Text>
+                <Text style={styles.logItemSub}>{a.checkIn} → {a.checkOut}{a.cost ? ` · ${a.cost}` : ''}</Text>
+                {a.notes ? <Text style={styles.logItemNote}>{a.notes}</Text> : null}
+              </View>
+              <Pressable onPress={() => confirmDeleteAccommodation(a.id)} accessibilityLabel="Delete accommodation entry" accessibilityRole="button">
+                <Feather name="trash-2" size={15} color={Palette.danger} />
+              </Pressable>
+            </View>
+          ))}
+          <PrimaryButton compact label="+ Add Accommodation" variant="secondary"
+            onPress={() => router.push({ pathname: '/trip/[id]/add-accommodation', params: { id } })} />
         </View>
 
         {totalCost > 0 && (
@@ -122,26 +202,17 @@ export default function TripDetail() {
           </View>
         )}
 
-        <View style={styles.actionRow}>
-          <View style={styles.actionBtn}>
-            <PrimaryButton compact label="Edit Trip" variant="secondary" onPress={() => router.push({ pathname: '../trip/[id]/edit', params: { id } })} />
-          </View>
-          <View style={styles.actionBtn}>
-            <PrimaryButton compact label="Delete Trip" variant="danger" onPress={confirmDeleteTrip} />
-          </View>
-        </View>
-
         <PrimaryButton label="+ Add Activity" onPress={() => router.push({ pathname: '/trip/[id]/add-activity', params: { id: trip.id.toString() } })} />
 
         {activities.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
-            <Pressable onPress={() => setFilterCategoryId(null)}>
+            <Pressable onPress={() => setFilterCategoryId(null)} accessibilityLabel="Show all activities" accessibilityRole="radio" accessibilityState={{ checked: filterCategoryId === null }}>
               <View style={[styles.pill, filterCategoryId === null ? styles.pillActive : styles.pillInactive]}>
                 <Text style={filterCategoryId === null ? styles.pillTextActive : styles.pillTextInactive}>All</Text>
               </View>
             </Pressable>
             {categories.filter(c => activities.some(a => a.categoryId === c.id)).map(cat => (
-              <Pressable key={cat.id} onPress={() => setFilterCategoryId(cat.id)}>
+              <Pressable key={cat.id} onPress={() => setFilterCategoryId(cat.id)} accessibilityLabel={`Filter by category: ${cat.name}`} accessibilityRole="radio" accessibilityState={{ checked: filterCategoryId === cat.id }}>
                 <View style={[styles.pill, filterCategoryId === cat.id ? styles.pillActive : styles.pillInactive]}>
                   <Text style={filterCategoryId === cat.id ? styles.pillTextActive : styles.pillTextInactive}>{cat.name}</Text>
                 </View>
@@ -204,23 +275,35 @@ const styles = StyleSheet.create({
     color: Palette.inkSecondary,
     fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.2,
     marginBottom: 8,
-    textTransform: 'uppercase',
   },
-  accommodationRow: {
+  logItem: {
     alignItems: 'center',
+    borderBottomColor: Palette.border,
+    borderBottomWidth: 0.5,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingBottom: 10,
   },
-  accommodationName: {
+  logItemLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  logItemTitle: {
     color: Palette.ink,
     fontSize: 14,
     fontWeight: '500',
   },
-  accommodationCost: {
+  logItemSub: {
     color: Palette.inkSecondary,
     fontSize: 12,
+    marginTop: 2,
+  },
+  logItemNote: {
+    color: Palette.inkHint,
+    fontSize: 11,
+    fontStyle: 'italic',
     marginTop: 2,
   },
   costRow: {
@@ -279,7 +362,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: Palette.inkSecondary,
-    fontFamily: 'DMSerifDisplay_400Regular',
+
     fontStyle: 'italic',
     fontSize: 15,
     lineHeight: 22,

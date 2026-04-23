@@ -1,9 +1,10 @@
 import { Palette } from '@/constants/theme';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import Feather from '@expo/vector-icons/Feather';
 import { Stack, useRouter } from 'expo-router';
 import { useContext, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateField from '../components/ui/date-field';
 import FormField from '../components/ui/form-field';
 import PrimaryButton from '../components/ui/primary-button';
 import ScreenHeader from '../components/ui/screen-header';
@@ -11,49 +12,14 @@ import { db } from '../db/client';
 import { tripsTable } from '../db/schema';
 import { AuthContext, TripContext } from './_layout';
 
-function DateField({ label, date, onChange }: { label: string; date: Date; onChange: (d: Date) => void }) {
-  const [show, setShow] = useState(false);
-  return (
-    <View style={dateStyles.wrapper}>
-      <Text style={dateStyles.label}>{label}</Text>
-      <Pressable onPress={() => setShow(true)} style={dateStyles.button}>
-        <Text style={dateStyles.value}>{date.toISOString().slice(0, 10)}</Text>
-      </Pressable>
-      {show && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="default"
-          onChange={(_, selected) => {
-            if (Platform.OS === 'android') setShow(false);
-            if (selected) onChange(selected);
-          }}
-        />
-      )}
-    </View>
-  );
-}
-
-const dateStyles = StyleSheet.create({
-  wrapper: { marginBottom: 16 },
-  label: {
-    color: Palette.inkSecondary,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  button: {
-    backgroundColor: Palette.cardBackground,
-    borderColor: Palette.border,
-    borderRadius: 0,
-    borderWidth: 0.5,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  value: { color: Palette.ink, fontSize: 15 },
-});
+type GeoResult = {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  country: string;
+  admin1?: string;
+};
 
 export default function AddTrip() {
   const router = useRouter();
@@ -65,8 +31,33 @@ export default function AddTrip() {
   const [endDate, setEndDate] = useState(new Date());
   const [notes, setNotes] = useState('');
 
+  const [geoResults, setGeoResults] = useState<GeoResult[]>([]);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState(false);
+  const [selectedGeo, setSelectedGeo] = useState<GeoResult | null>(null);
+
   if (!context) return null;
   const { refreshTrips } = context;
+
+  const lookupDestination = async () => {
+    if (!destination.trim()) return;
+    setGeoLoading(true);
+    setGeoResults([]);
+    setGeoError(false);
+    setSelectedGeo(null);
+    try {
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination.trim())}&count=3`
+      );
+      const data = await res.json();
+      const results: GeoResult[] = data.results ?? [];
+      setGeoResults(results);
+      if (results.length === 0) setGeoError(true);
+    } catch {
+      setGeoError(true);
+    }
+    setGeoLoading(false);
+  };
 
   const saveTrip = async () => {
     await db.insert(tripsTable).values({
@@ -76,6 +67,9 @@ export default function AddTrip() {
       endDate: endDate.toISOString().slice(0, 10),
       notes: notes.trim() || null,
       userId: authContext?.user?.id ?? null,
+      latitude: selectedGeo?.latitude ?? null,
+      longitude: selectedGeo?.longitude ?? null,
+      country: selectedGeo?.country ?? null,
     });
     if (authContext?.user) await refreshTrips(authContext.user.id);
     router.back();
@@ -87,7 +81,62 @@ export default function AddTrip() {
       <ScreenHeader title="Add Trip" subtitle="Plan a new holiday." />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <FormField label="Trip Name" value={name} onChangeText={setName} />
-        <FormField label="Destination" value={destination} onChangeText={setDestination} />
+
+        <FormField
+          label="Destination"
+          value={destination}
+          onChangeText={text => {
+            setDestination(text);
+            setSelectedGeo(null);
+            setGeoResults([]);
+            setGeoError(false);
+          }}
+        />
+
+        {destination.trim().length > 0 && !selectedGeo && (
+          <View style={styles.geoLookupRow}>
+            <Pressable style={styles.lookupBtn} onPress={lookupDestination} disabled={geoLoading} accessibilityLabel="Look up location coordinates" accessibilityRole="button">
+              {geoLoading
+                ? <ActivityIndicator size="small" color={Palette.terracotta} />
+                : <Text style={styles.lookupBtnText}>Look up location</Text>
+              }
+            </Pressable>
+          </View>
+        )}
+
+        {geoError && (
+          <Text style={styles.geoError}>No results found. Try a different spelling.</Text>
+        )}
+
+        {geoResults.length > 0 && !selectedGeo && (
+          <View style={styles.geoResults}>
+            {geoResults.map(r => (
+              <Pressable key={r.id} style={styles.geoRow} onPress={() => {
+                setSelectedGeo(r);
+                setGeoResults([]);
+              }} accessibilityLabel={`Select location: ${r.name}${r.admin1 ? `, ${r.admin1}` : ''}, ${r.country}`} accessibilityRole="button">
+                <View style={styles.geoRowInner}>
+                  <Text style={styles.geoName}>{r.name}{r.admin1 ? `, ${r.admin1}` : ''}</Text>
+                  <Text style={styles.geoCountry}>{r.country}</Text>
+                </View>
+                <Feather name="chevron-right" size={14} color={Palette.inkHint} />
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {selectedGeo && (
+          <View style={styles.geoConfirmed}>
+            <Feather name="map-pin" size={13} color={Palette.terracotta} />
+            <Text style={styles.geoConfirmedText}>
+              {selectedGeo.name}{selectedGeo.admin1 ? `, ${selectedGeo.admin1}` : ''}, {selectedGeo.country}
+            </Text>
+            <Pressable onPress={() => { setSelectedGeo(null); setGeoResults([]); }} accessibilityLabel="Clear selected location" accessibilityRole="button">
+              <Feather name="x" size={13} color={Palette.inkHint} />
+            </Pressable>
+          </View>
+        )}
+
         <DateField label="Start Date" date={startDate} onChange={setStartDate} />
         <DateField label="End Date" date={endDate} onChange={setEndDate} />
         <FormField label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Any notes about this trip..." multiline />
@@ -112,5 +161,72 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginTop: 10,
+  },
+  geoLookupRow: {
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  lookupBtn: {
+    alignSelf: 'flex-start',
+    borderColor: Palette.terracotta,
+    borderWidth: 0.5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  lookupBtnText: {
+    color: Palette.terracotta,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  geoError: {
+    color: Palette.inkSecondary,
+    fontSize: 12,
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  geoResults: {
+    borderColor: Palette.border,
+    borderWidth: 0.5,
+    marginBottom: 16,
+    marginTop: -4,
+  },
+  geoRow: {
+    alignItems: 'center',
+    borderBottomColor: Palette.border,
+    borderBottomWidth: 0.5,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  geoRowInner: {
+    flex: 1,
+  },
+  geoName: {
+    color: Palette.ink,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  geoCountry: {
+    color: Palette.inkSecondary,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  geoConfirmed: {
+    alignItems: 'center',
+    backgroundColor: Palette.cardBackground,
+    borderColor: Palette.border,
+    borderWidth: 0.5,
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+    marginTop: -4,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  geoConfirmedText: {
+    color: Palette.ink,
+    flex: 1,
+    fontSize: 12,
   },
 });
